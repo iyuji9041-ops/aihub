@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -58,6 +59,8 @@ import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -564,7 +567,7 @@ fun AiHubAppBar(
             text = {
                 Text(
                     text = stringResource(
-                        R.string.dialog_clear_site_data_message, selectedService.name
+                        R.string.msg_clear_site_data_warning, selectedService.name
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = colorScheme.onSurfaceVariant
@@ -591,4 +594,76 @@ fun AiHubAppBar(
             shape = RoundedCornerShape(28.dp)
         )
     }
+}
+
+@Composable
+private fun LoadingLine(
+    modifier: Modifier = Modifier,
+    isVisible: Boolean,
+    accentColor: Color,
+    progress: Int = 0
+) {
+    val animatedFraction by animateFloatAsState(
+        targetValue = progress / 100f,
+        animationSpec = tween(durationMillis = 600),
+        label = "progress"
+    )
+
+    androidx.compose.animation.AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(animationSpec = tween(300)),
+        exit = fadeOut(animationSpec = tween(300)),
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .background(accentColor.copy(alpha = 0.2f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(animatedFraction)
+                    .height(4.dp)
+                    .background(accentColor)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun Md3TopAppBar(
+    title: String,
+    onBack: (() -> Unit)? = null,
+    scrollBehavior: TopAppBarScrollBehavior? = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(),
+    actions: @Composable RowScope.() -> Unit = {}
+) {
+    TopAppBar(
+        title = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge
+            )
+        },
+        navigationIcon = {
+            if (onBack != null) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = stringResource(R.string.action_back)
+                    )
+                }
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = colorScheme.surface,
+            scrolledContainerColor = colorScheme.surfaceColorAtElevation(3.dp),
+            titleContentColor = colorScheme.onSurface,
+            navigationIconContentColor = colorScheme.onSurface,
+            actionIconContentColor = colorScheme.onSurface,
+        ),
+        scrollBehavior = scrollBehavior,
+        actions = actions,
+    )
 }

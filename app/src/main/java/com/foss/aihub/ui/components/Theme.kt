@@ -122,6 +122,11 @@ fun Modifier.frostedBorder(
     shape = shape
 )
 
+fun Modifier.frostedBorder(
+    radius: androidx.compose.ui.unit.Dp,
+    borderColor: Color? = null
+): Modifier = frostedBorder(RoundedCornerShape(radius), borderColor)
+
 @Composable
 fun AiHubTheme(
     context: Context, settingsManager: SettingsManager, content: @Composable () -> Unit

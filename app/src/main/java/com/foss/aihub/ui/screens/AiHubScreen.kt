@@ -277,6 +277,15 @@ fun AiHubApp(
         }
     }
 
+    var previousSettings by remember { mutableStateOf(settings) }
+
+    val applySettingsToAllWebViews: (Boolean) -> Unit = { reload ->
+        webViews.forEach { (_, webView) ->
+            updateWebViewSettings(webView, settings, reload)
+        }
+        previousSettings = settings
+    }
+
     var showUpdateDialog by remember { mutableStateOf(false) }
     var updateResult by remember { mutableStateOf<UpdateResult?>(null) }
 
@@ -1082,15 +1091,6 @@ fun AiHubApp(
                 },
             )
         }
-    }
-
-    var previousSettings by remember { mutableStateOf(settings) }
-
-    val applySettingsToAllWebViews: (Boolean) -> Unit = { reload ->
-        webViews.forEach { (_, webView) ->
-            updateWebViewSettings(webView, settings, reload)
-        }
-        previousSettings = settings
     }
 
     var previousMaxKeepAlive by remember { mutableIntStateOf(settings.maxKeepAlive) }

@@ -105,7 +105,7 @@ fun BentoHomeScreen(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .frostedBorder(14.dp),
+                .frostedBorder(RoundedCornerShape(14.dp)),
             shape = RoundedCornerShape(14.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
             tonalElevation = 2.dp
@@ -210,7 +210,7 @@ fun BentoHomeScreen(
             onValueChange = { searchQuery = it },
             modifier = Modifier
                 .fillMaxWidth()
-                .frostedBorder(16.dp),
+                .frostedBorder(RoundedCornerShape(16.dp)),
             placeholder = {
                 Text(
                     text = "Search AI or type prompt to ask...",
@@ -310,7 +310,7 @@ private fun BentoServiceCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .frostedBorder(16.dp)
+            .frostedBorder(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
