@@ -13,7 +13,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.foss.aihub"
+        applicationId = "com.zaswix.aihub"
         minSdk = 26
         //noinspection OldTargetApi
         targetSdk = 36

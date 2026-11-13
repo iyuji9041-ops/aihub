@@ -23,6 +23,9 @@ class SettingsManager(context: Context) {
             migrateToNewVersion()
             sharedPref.edit { putInt(KEY_STORAGE_VERSION, CURRENT_VERSION) }
         }
+        if (!sharedPref.contains(KEY_THIRD_PARTY_COOKIES)) {
+            sharedPref.edit { putBoolean(KEY_THIRD_PARTY_COOKIES, true) }
+        }
     }
 
     private val _settingsFlow = MutableStateFlow(loadSettings())
@@ -119,7 +122,7 @@ class SettingsManager(context: Context) {
         maxKeepAlive = sharedPref.getInt(KEY_MAX_KEEP_ALIVE, 5),
         enableZoom = sharedPref.getBoolean(KEY_ENABLE_ZOOM, true),
         desktopView = sharedPref.getBoolean(KEY_DESKTOP_VIEW, false),
-        thirdPartyCookies = sharedPref.getBoolean(KEY_THIRD_PARTY_COOKIES, false),
+        thirdPartyCookies = sharedPref.getBoolean(KEY_THIRD_PARTY_COOKIES, true),
         fontSizePercentage = sharedPref.getInt(KEY_FONT_SIZE_PERCENT, 100),
         updateFrequencyDays = sharedPref.getInt(KEY_UPDATE_FREQUENCY_DAYS, 3),
         blockAdsAndTrackers = sharedPref.getBoolean(KEY_BLOCK_ADS_TRACKERS, true),

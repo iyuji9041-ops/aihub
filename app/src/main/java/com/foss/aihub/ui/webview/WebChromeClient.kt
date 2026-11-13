@@ -1,8 +1,12 @@
 package com.foss.aihub.ui.webview
 
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.net.Uri
 import android.util.Log
+import android.view.KeyEvent
+import android.view.ViewGroup
+import android.webkit.CookieManager
 import android.webkit.JsPromptResult
 import android.webkit.JsResult
 import android.webkit.PermissionRequest
@@ -54,52 +58,79 @@ open class CustomWebChromeClient(
             "AI_HUB", "onCreateWindow called - isDialog: $isDialog, isUserGesture: $isUserGesture"
         )
 
-        val transport = resultMsg?.obj as? WebView.WebViewTransport
+        val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
 
-        return if (mainWebView != null) {
-            Log.d("AI_HUB", "Creating dummy WebView for window.open")
-            val dummyWebView = WebView(context).apply {
-                settings.apply {
-                    javaScriptEnabled = true
-                    domStorageEnabled = true
-                    javaScriptCanOpenWindowsAutomatically = true
-                    setSupportMultipleWindows(true)
-                    loadWithOverviewMode = true
-                    useWideViewPort = true
-                    allowFileAccess = true
-                    allowContentAccess = true
-                    mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                    cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
-                }
+        val dialog = Dialog(context, android.R.style.Theme_DeviceDefault_NoActionBar)
+        val popupWebView = WebView(context)
 
-                webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(
-                        view: WebView?, request: WebResourceRequest?
-                    ): Boolean {
-                        request?.url?.let { url ->
-                            Log.d("AI_HUB", "Redirecting window.open URL to main WebView: $url")
-                            mainWebView.loadUrl(url.toString())
-                        }
-                        return true
-                    }
-                }
+        popupWebView.layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
 
-                activeWebViews.add(this)
-            }
-
-            transport?.webView = dummyWebView
-            resultMsg?.sendToTarget()
-
-            dummyWebView.postDelayed({
-                activeWebViews.remove(dummyWebView)
-                dummyWebView.destroy()
-            }, 1000)
-
-            true
-        } else {
-            Log.e("AI_HUB", "Failed to create dummy WebView for window.open")
-            false
+        updateWebViewSettings(popupWebView, context.settingsManager.settingsFlow.value, reload = false)
+        CookieManager.getInstance().apply {
+            setAcceptCookie(true)
+            setAcceptThirdPartyCookies(popupWebView, true)
         }
+
+        popupWebView.webChromeClient = object : WebChromeClient() {
+            override fun onCloseWindow(window: WebView?) {
+                super.onCloseWindow(window)
+                CookieManager.getInstance().flush()
+                try {
+                    dialog.dismiss()
+                } catch (e: Exception) {
+                    Log.e("AI_HUB", "Error dismissing OAuth dialog: ${e.message}")
+                }
+                window?.destroy()
+                activeWebViews.remove(window)
+            }
+        }
+
+        popupWebView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(
+                view: WebView?, request: WebResourceRequest?
+            ): Boolean {
+                val url = request?.url?.toString() ?: ""
+                return if (url.startsWith("https://") || url.startsWith("http://")) {
+                    false
+                } else {
+                    super.shouldOverrideUrlLoading(view, request)
+                }
+            }
+        }
+
+        activeWebViews.add(popupWebView)
+
+        dialog.setContentView(popupWebView)
+        dialog.setCancelable(true)
+        dialog.setCanceledOnTouchOutside(false)
+        dialog.setOnKeyListener { _, keyCode, event ->
+            if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                if (popupWebView.canGoBack()) {
+                    popupWebView.goBack()
+                } else {
+                    dialog.dismiss()
+                }
+                true
+            } else {
+                false
+            }
+        }
+        dialog.setOnDismissListener {
+            CookieManager.getInstance().flush()
+            if (activeWebViews.contains(popupWebView)) {
+                activeWebViews.remove(popupWebView)
+                popupWebView.destroy()
+            }
+        }
+
+        dialog.show()
+
+        transport.webView = popupWebView
+        resultMsg.sendToTarget()
+        return true
     }
 
     override fun onCloseWindow(window: WebView?) {

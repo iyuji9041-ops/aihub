@@ -17,6 +17,8 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.webkit.ProxyConfig
 import androidx.webkit.ProxyController
+import androidx.webkit.UserAgentMetadata
+import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 import androidx.webkit.WebViewFeature.PROXY_OVERRIDE
 import com.foss.aihub.MainActivity
@@ -28,7 +30,9 @@ import com.foss.aihub.ui.webview.DownloadHandler.handleDownload
 import com.foss.aihub.utils.USER_AGENT_DESKTOP
 import com.foss.aihub.utils.USER_AGENT_MOBILE
 import com.foss.aihub.utils.cleanTrackingParams
+import com.foss.aihub.utils.extractChromiumVersion
 import com.foss.aihub.utils.extractLinkTitle
+import com.foss.aihub.utils.getCleanUserAgent
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
@@ -255,6 +259,7 @@ fun updateWebViewSettings(
         defaultFixedFontSize = (baseFixedSize * scale).roundToInt()
         javaScriptEnabled = true
         domStorageEnabled = true
+        databaseEnabled = true
         mediaPlaybackRequiresUserGesture = false
         javaScriptCanOpenWindowsAutomatically = true
         setSupportMultipleWindows(true)
@@ -264,7 +269,38 @@ fun updateWebViewSettings(
         allowContentAccess = true
         mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         cacheMode = WebSettings.LOAD_DEFAULT
-        userAgentString = if (settings.desktopView) USER_AGENT_DESKTOP else USER_AGENT_MOBILE
+        userAgentString = getCleanUserAgent(webView.context, settings.desktopView)
+
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.USER_AGENT_METADATA)) {
+            val (majorVersion, fullVersion) = extractChromiumVersion(webView.context)
+            val brands = listOf(
+                UserAgentMetadata.BrandVersion.Builder()
+                    .setBrand("Google Chrome")
+                    .setMajorVersion(majorVersion)
+                    .setFullVersion(fullVersion)
+                    .build(),
+                UserAgentMetadata.BrandVersion.Builder()
+                    .setBrand("Chromium")
+                    .setMajorVersion(majorVersion)
+                    .setFullVersion(fullVersion)
+                    .build(),
+                UserAgentMetadata.BrandVersion.Builder()
+                    .setBrand("Not_A Brand")
+                    .setMajorVersion("24")
+                    .setFullVersion("24.0.0.0")
+                    .build()
+            )
+            val metadata = UserAgentMetadata.Builder()
+                .setBrandVersionList(brands)
+                .setPlatform(if (settings.desktopView) "Windows" else "Android")
+                .setPlatformVersion(if (settings.desktopView) "10.0.0" else "14.0.0")
+                .setArchitecture(if (settings.desktopView) "x86" else "arm")
+                .setBitness(64)
+                .setMobile(!settings.desktopView)
+                .setWow64(false)
+                .build()
+            WebSettingsCompat.setUserAgentMetadata(this, metadata)
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             isAlgorithmicDarkeningAllowed = true

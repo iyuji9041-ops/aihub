@@ -1,7 +1,9 @@
 package com.foss.aihub.ui.webview
 
 import android.graphics.Bitmap
+import android.net.Uri
 import android.util.Log
+import android.webkit.CookieManager
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -29,18 +31,35 @@ class CustomWebViewClient(
         Log.d("AI_HUB", "Page started: ${service.name} - $url")
     }
 
+    private fun isAuthOrChallengeUrl(url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        val uri = try { Uri.parse(url) } catch (_: Exception) { return false }
+        val host = uri.host?.lowercase() ?: return false
+        val authChallengeDomains = listOf(
+            "accounts.google.com",
+            "challenges.cloudflare.com",
+            "auth0.com",
+            "accounts.x.ai"
+        )
+        return authChallengeDomains.any { domain ->
+            host == domain || host.endsWith(".$domain")
+        }
+    }
+
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
         if (!hasErrorOccurred) {
             onProgressUpdate(100)
             onLoadingStateChange(false)
 
-            if (view != null) {
+            if (view != null && !isAuthOrChallengeUrl(url)) {
                 injectBlobInterceptor(view)
                 injectShareInterceptor(view)
                 injectCustomJs(view)
                 injectCustomCss(view)
             }
+
+            CookieManager.getInstance().flush()
 
             Log.d("AI_HUB", "Page finished: ${service.name} - $url")
         }

@@ -12,7 +12,7 @@ data class AppSettings(
     var maxKeepAlive: Int = 5,
     var enableZoom: Boolean = true,
     var desktopView: Boolean = false,
-    var thirdPartyCookies: Boolean = false,
+    var thirdPartyCookies: Boolean = true,
     var fontSizePercentage: Int = 100,
     var updateFrequencyDays: Int = 3,
     var blockAdsAndTrackers: Boolean = true,
