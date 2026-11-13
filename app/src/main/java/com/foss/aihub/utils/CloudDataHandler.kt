@@ -51,11 +51,19 @@ object CloudDataHandler {
     },
     {
       "name": "Grok",
-      "website": "https://x.ai",
+      "website": "https://grok.com",
       "pricing": "Freemium",
       "privacy": "Proprietary",
       "login_required": true,
       "best_for": ["Real-time X data", "Uncensored humor"]
+    },
+    {
+      "name": "Groq",
+      "website": "https://chat.groq.com",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": false,
+      "best_for": ["Ultra-fast inference", "Llama 3", "Coding"]
     },
     {
       "name": "DeepSeek",
@@ -124,6 +132,7 @@ google.com
 accounts.google.com
 x.ai
 grok.com
+groq.com
 deepseek.com
 perplexity.ai
 duckduckgo.com
@@ -181,16 +190,17 @@ auth0.com
         }
     }
 
-    suspend fun updateDomains(context: Context): Boolean {
+    suspend fun updateDomains(context: Context, force: Boolean = false): Boolean {
         return try {
             val settingsManager = SettingsManager(context)
-            val etag = updateData(context, DOMAINS_FILE, settingsManager.getDomainsEtag())
+            val currentEtag = if (force) null else settingsManager.getDomainsEtag()
+            val etag = updateData(context, DOMAINS_FILE, currentEtag)
             if (etag != null) {
                 settingsManager.saveDomainsEtag(etag)
                 true
             } else {
                 ensureFallbackData(context)
-                false
+                File(context.filesDir, DOMAINS_FILE).exists()
             }
         } catch (e: Exception) {
             Log.w("CloudDataHandler", "Remote domains update failed, using fallback: ${e.message}")
@@ -199,16 +209,17 @@ auth0.com
         }
     }
 
-    suspend fun updateAiServices(context: Context): Boolean {
+    suspend fun updateAiServices(context: Context, force: Boolean = false): Boolean {
         return try {
             val settingsManager = SettingsManager(context)
-            val etag = updateData(context, AI_SERVICES_FILE, settingsManager.getAiServicesEtag())
+            val currentEtag = if (force) null else settingsManager.getAiServicesEtag()
+            val etag = updateData(context, AI_SERVICES_FILE, currentEtag)
             if (etag != null) {
                 settingsManager.saveAiServicesEtag(etag)
                 true
             } else {
                 ensureFallbackData(context)
-                false
+                File(context.filesDir, AI_SERVICES_FILE).exists()
             }
         } catch (e: Exception) {
             Log.w("CloudDataHandler", "Remote AI services update failed, using fallback: ${e.message}")
@@ -219,6 +230,7 @@ auth0.com
 
     suspend fun updateData(context: Context, fileName: String, etag: String?): String? {
         return withContext(Dispatchers.IO) {
+            // 1. Try primary cloud repo
             try {
                 val response = getResponse(url = CLOUD_BASE_URL + fileName, etag = etag)
                 if (response != null) {
@@ -229,8 +241,24 @@ auth0.com
                     return@withContext newEtag
                 }
             } catch (e: Exception) {
-                Log.w("CloudDataHandler", "Error fetching $fileName from cloud: ${e.message}")
+                Log.w("CloudDataHandler", "Primary cloud repo fetch failed for $fileName: ${e.message}, falling back to upstream mirror...")
             }
+
+            // 2. Fallback immediately to upstream mirror if primary 404s/fails
+            try {
+                val mirrorResponse = getResponse(url = UPSTREAM_MIRROR_BASE_URL + fileName, etag = etag)
+                if (mirrorResponse != null) {
+                    val (body, newEtag) = mirrorResponse
+                    context.openFileOutput(fileName, Context.MODE_PRIVATE).use { outputStream ->
+                        outputStream.write(body.toByteArray())
+                    }
+                    Log.i("CloudDataHandler", "Successfully fetched $fileName from upstream mirror!")
+                    return@withContext newEtag
+                }
+            } catch (e: Exception) {
+                Log.w("CloudDataHandler", "Upstream mirror fetch also failed for $fileName: ${e.message}")
+            }
+
             return@withContext null
         }
     }

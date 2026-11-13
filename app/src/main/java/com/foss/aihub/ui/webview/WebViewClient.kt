@@ -11,6 +11,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.foss.aihub.MainActivity
 import com.foss.aihub.models.AiService
+import com.foss.aihub.utils.USER_AGENT_FIREFOX_ANDROID
+import com.foss.aihub.utils.getCleanUserAgent
 import com.foss.aihub.utils.readAssetsFile
 import java.io.ByteArrayInputStream
 
@@ -28,6 +30,11 @@ class CustomWebViewClient(
         hasErrorOccurred = false
         onLoadingStateChange(true)
         onProgressUpdate(0)
+        if (url?.contains("accounts.google.com") == true) {
+            view?.settings?.userAgentString = USER_AGENT_FIREFOX_ANDROID
+        } else if (url != null) {
+            view?.settings?.userAgentString = getCleanUserAgent(context, context.settingsManager.settingsFlow.value.desktopView)
+        }
         Log.d("AI_HUB", "Page started: ${service.name} - $url")
     }
 
@@ -148,6 +155,11 @@ class CustomWebViewClient(
         view: WebView?, request: WebResourceRequest?
     ): Boolean {
         val url = request?.url?.toString() ?: return false
+        if (url.contains("accounts.google.com")) {
+            view?.settings?.userAgentString = USER_AGENT_FIREFOX_ANDROID
+        } else {
+            view?.settings?.userAgentString = getCleanUserAgent(context, context.settingsManager.settingsFlow.value.desktopView)
+        }
         return !WebViewSecurity.allowConnectivityForService(url)
     }
 

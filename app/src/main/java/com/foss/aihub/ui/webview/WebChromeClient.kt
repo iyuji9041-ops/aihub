@@ -2,6 +2,7 @@ package com.foss.aihub.ui.webview
 
 import android.annotation.SuppressLint
 import android.app.Dialog
+import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import android.view.KeyEvent
@@ -16,6 +17,8 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.foss.aihub.MainActivity
+import com.foss.aihub.utils.USER_AGENT_FIREFOX_ANDROID
+import com.foss.aihub.utils.getCleanUserAgent
 
 open class CustomWebChromeClient(
     private val context: MainActivity,
@@ -93,10 +96,24 @@ open class CustomWebChromeClient(
                 view: WebView?, request: WebResourceRequest?
             ): Boolean {
                 val url = request?.url?.toString() ?: ""
+                if (url.contains("accounts.google.com")) {
+                    view?.settings?.userAgentString = USER_AGENT_FIREFOX_ANDROID
+                } else {
+                    view?.settings?.userAgentString = getCleanUserAgent(context, context.settingsManager.settingsFlow.value.desktopView)
+                }
                 return if (url.startsWith("https://") || url.startsWith("http://")) {
                     false
                 } else {
                     super.shouldOverrideUrlLoading(view, request)
+                }
+            }
+
+            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                if (url?.contains("accounts.google.com") == true) {
+                    view?.settings?.userAgentString = USER_AGENT_FIREFOX_ANDROID
+                } else if (url != null) {
+                    view?.settings?.userAgentString = getCleanUserAgent(context, context.settingsManager.settingsFlow.value.desktopView)
                 }
             }
         }

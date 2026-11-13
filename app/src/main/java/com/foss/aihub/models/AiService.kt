@@ -53,9 +53,14 @@ suspend fun loadServices(context: Context): List<AiService> = withContext(Dispat
             val rawMap = Json.decodeFromString<Map<String, List<RawAiService>>>(jsonString)
             rawMap.flatMap { (categoryName, rawServices) ->
                 rawServices.map { raw ->
+                    val resolvedUrl = when {
+                        raw.name.equals("Grok", ignoreCase = true) || raw.website.trimEnd('/') == "https://x.ai" || raw.website.trimEnd('/') == "http://x.ai" -> "https://grok.com"
+                        raw.name.equals("Groq", ignoreCase = true) || raw.website.contains("groq.com") -> "https://chat.groq.com"
+                        else -> raw.website
+                    }
                     AiService(
                         name = raw.name,
-                        url = raw.website,
+                        url = resolvedUrl,
                         category = categoryName,
                         pricing = raw.pricing,
                         privacy = raw.privacy,
@@ -75,9 +80,14 @@ suspend fun loadServices(context: Context): List<AiService> = withContext(Dispat
     val customServices = try {
         val settingsManager = com.foss.aihub.utils.SettingsManager(context)
         settingsManager.loadCustomServices().map { custom ->
+            val resolvedUrl = when {
+                custom.name.equals("Grok", ignoreCase = true) || custom.url.trimEnd('/') == "https://x.ai" -> "https://grok.com"
+                custom.name.equals("Groq", ignoreCase = true) -> "https://chat.groq.com"
+                else -> custom.url
+            }
             AiService(
                 name = custom.name,
-                url = custom.url,
+                url = resolvedUrl,
                 category = custom.category.ifBlank { "Custom" },
                 pricing = "Custom",
                 privacy = "Custom",

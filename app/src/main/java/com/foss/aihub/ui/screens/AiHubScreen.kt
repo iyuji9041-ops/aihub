@@ -10,10 +10,13 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,12 +25,21 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AcUnit
 import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.VerticalSplit
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DrawerValue.Closed
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -59,8 +71,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
@@ -91,6 +105,7 @@ import com.foss.aihub.ui.screens.dialogs.PromptVaultSheet
 import com.foss.aihub.ui.screens.dialogs.UpdateResultDialog
 import com.foss.aihub.ui.webview.createWebViewForService
 import com.foss.aihub.ui.webview.updateWebViewSettings
+import com.foss.aihub.ui.components.frostedBorder
 import com.foss.aihub.utils.AppUpdateInfo
 import com.foss.aihub.utils.CloudDataHandler
 import com.foss.aihub.utils.SUPPORT_EMAIL
@@ -106,6 +121,90 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+
+@Composable
+fun FrostedFreezeBanner(
+    serviceName: String,
+    onWake: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.65f))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .padding(24.dp)
+                .fillMaxWidth(0.9f)
+                .frostedBorder(RoundedCornerShape(20.dp)),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFF162D4A),
+                    modifier = Modifier.size(56.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.AcUnit,
+                            contentDescription = "Frozen",
+                            tint = Color(0xFF9DD2FF),
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+
+                Text(
+                    text = "❄️ $serviceName is Deep-Frozen (0% CPU • 0 Data Usage)",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+
+                Text(
+                    text = "JavaScript execution, background media, and network timers are stopped to save battery & mobile data.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Button(
+                    onClick = onWake,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Bolt,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "⚡ Wake Up Tab",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -165,7 +264,7 @@ fun AiHubApp(
     var showBroadcastBar by remember { mutableStateOf(false) }
 
     // Bento Home Dashboard
-    var showHomeDashboard by remember { mutableStateOf(false) }
+    var showHomeDashboard by remember { mutableStateOf(true) }
 
     // Full-Screen Immersive Mode
     var isImmersiveMode by remember { mutableStateOf(false) }
@@ -230,9 +329,14 @@ fun AiHubApp(
     fun freezeServiceNow(serviceName: String) {
         if (serviceName.isBlank()) return
         pauseJobs.remove(serviceName)?.cancel()
-        webViews[serviceName]?.onPause()
+        webViews[serviceName]?.let { wv ->
+            wv.evaluateJavascript("window.stop(); document.querySelectorAll('video, audio').forEach(m => m.pause());", null)
+            wv.stopLoading()
+            wv.onPause()
+            wv.pauseTimers()
+        }
         frozenServices.add(serviceName)
-        Toast.makeText(context, "❄️ Frozen $serviceName (0% CPU)", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "❄️ $serviceName Frozen (0% CPU & 0 Data)", Toast.LENGTH_SHORT).show()
     }
 
     fun freezeAllBackgroundServices() {
@@ -240,12 +344,17 @@ fun AiHubApp(
         webViews.forEach { (name, wv) ->
             if (name != selectedService.name && (!isSplitScreenMode || name != secondaryService.name)) {
                 pauseJobs.remove(name)?.cancel()
+                wv.evaluateJavascript("window.stop(); document.querySelectorAll('video, audio').forEach(m => m.pause());", null)
+                wv.stopLoading()
                 wv.onPause()
+                wv.pauseTimers()
                 frozenServices.add(name)
                 count++
             }
         }
-        Toast.makeText(context, "❄️ Frozen $count background tab(s) (0% CPU)", Toast.LENGTH_SHORT).show()
+        if (count > 0) {
+            Toast.makeText(context, "❄️ Frozen $count background tab(s) (0% CPU)", Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun wakeService(serviceName: String) {
@@ -497,10 +606,12 @@ fun AiHubApp(
         }
     }
 
-    LaunchedEffect(initialServiceNames) {
-        initialServiceNames.forEach { serviceName ->
-            val service = aiServices.find { it.name == serviceName } ?: return@forEach
-            getOrCreateWebView(service)
+    LaunchedEffect(initialServiceNames, showHomeDashboard) {
+        if (!showHomeDashboard) {
+            initialServiceNames.forEach { serviceName ->
+                val service = aiServices.find { it.name == serviceName } ?: return@forEach
+                getOrCreateWebView(service)
+            }
         }
     }
 
@@ -673,7 +784,14 @@ fun AiHubApp(
                     },
                     onHomeClick = { showHomeDashboard = !showHomeDashboard },
                     isHomeActive = showHomeDashboard,
-                    onFreezeBackgroundTabs = { freezeAllBackgroundServices() },
+                    onFreezeBackgroundTabs = {
+                        if (selectedService.name in frozenServices) {
+                            wakeService(selectedService.name)
+                        } else {
+                            freezeServiceNow(selectedService.name)
+                            freezeAllBackgroundServices()
+                        }
+                    },
                     isAllBackgroundFrozen = webViews.size <= 1 || frozenServices.size >= (webViews.size - (if (isSplitScreenMode) 2 else 1)),
                     frozenServices = frozenServices,
                     onPromptVaultClick = { showPromptVault = true },
@@ -912,6 +1030,12 @@ fun AiHubApp(
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
+                        } else if (selectedService.name in frozenServices) {
+                            FrostedFreezeBanner(
+                                serviceName = selectedService.name,
+                                onWake = { wakeService(selectedService.name) },
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
                     }
                 } else {
@@ -948,6 +1072,14 @@ fun AiHubApp(
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
+
+                            if (selectedService.name in frozenServices) {
+                                FrostedFreezeBanner(
+                                    serviceName = selectedService.name,
+                                    onWake = { wakeService(selectedService.name) },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
 
                         // Split Divider with Model Switcher
@@ -990,6 +1122,14 @@ fun AiHubApp(
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
+
+                            if (secondaryService.name in frozenServices) {
+                                FrostedFreezeBanner(
+                                    serviceName = secondaryService.name,
+                                    onWake = { wakeService(secondaryService.name) },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
                     }
                 }

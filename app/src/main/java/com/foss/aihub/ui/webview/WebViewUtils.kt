@@ -261,7 +261,7 @@ fun updateWebViewSettings(
         javaScriptEnabled = true
         domStorageEnabled = true
         databaseEnabled = true
-        mediaPlaybackRequiresUserGesture = false
+        mediaPlaybackRequiresUserGesture = true
         javaScriptCanOpenWindowsAutomatically = true
         setSupportMultipleWindows(true)
         loadWithOverviewMode = true

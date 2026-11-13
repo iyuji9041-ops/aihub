@@ -213,10 +213,10 @@ class MainActivity : ComponentActivity() {
             emptyList()
         }
 
-        if (domainsSet.isEmpty() || services.isEmpty()) {
+        if (domainsSet.isEmpty() || services.size <= 12) {
             try {
-                CloudDataHandler.updateAiServices(this)
-                CloudDataHandler.updateDomains(this)
+                CloudDataHandler.updateAiServices(this, force = true)
+                CloudDataHandler.updateDomains(this, force = true)
             } catch (_: Exception) {
                 // Ignore cloud update failure and rely on local built-in fallback
             }
@@ -228,6 +228,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
             services = loadServices(this)
+            if (services.size > 12) {
+                settingsManager.updateSettings { current ->
+                    current.enabledServices = services.map { it.name }.toSet()
+                    current.serviceOrder = services.map { it.name }
+                }
+            }
         }
         return services to domainsSet
     }

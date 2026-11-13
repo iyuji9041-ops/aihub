@@ -151,7 +151,7 @@ fun AiHubAppBar(
     var expanded by remember { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
-    val isCompactScreen = configuration.screenWidthDp < 380
+    val isCompactScreen = configuration.screenWidthDp < 600
 
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 90f else 0f,
@@ -196,21 +196,25 @@ fun AiHubAppBar(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
 
                         if (!isHomeActive) {
                             Spacer(modifier = Modifier.width(6.dp))
                             val isFrozen = service.name in frozenServices
                             Surface(
-                                shape = RoundedCornerShape(6.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 color = if (isFrozen) Color(0xFF162D4A) else Color(0xFF133618),
                                 contentColor = if (isFrozen) Color(0xFF9DD2FF) else Color(0xFF75F98A)
                             ) {
                                 Text(
-                                    text = if (isFrozen) "❄️ Frozen" else "🟢 Active",
+                                    text = if (isFrozen) "❄️ Frozen" else "●",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    softWrap = false,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
@@ -250,9 +254,10 @@ fun AiHubAppBar(
                     )
                 }
 
-                // 2. Freeze Background Tabs button
+                // 2. Freeze Tabs button
+                val isCurrentFrozen = selectedService.name in frozenServices
                 TooltipIconButton(
-                    tooltipText = if (isAllBackgroundFrozen) "Background Tabs Frozen (0% CPU)" else "Freeze Background Tabs (Save RAM)",
+                    tooltipText = if (isCurrentFrozen) "Tab Frozen (0% CPU) - Tap to Wake" else "Deep Freeze Tab & Background (Save RAM & Data)",
                     onClick = onFreezeBackgroundTabs,
                     modifier = Modifier
                         .size(40.dp)
@@ -260,8 +265,8 @@ fun AiHubAppBar(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.AcUnit,
-                        contentDescription = "Freeze Background Tabs",
-                        tint = if (isAllBackgroundFrozen) Color(0xFF9DD2FF) else colorScheme.onSurfaceVariant,
+                        contentDescription = "Freeze Tabs",
+                        tint = if (isCurrentFrozen || isAllBackgroundFrozen) Color(0xFF9DD2FF) else colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(22.dp)
                     )
                 }
