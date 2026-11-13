@@ -162,6 +162,7 @@ fun SettingsScreen(
         mutableIntStateOf(if (settings.maxKeepAlive == Int.MAX_VALUE) 5 else settings.maxKeepAlive)
     }
 
+    var selectedTheme by remember { mutableStateOf(settings.theme) }
     var enableZoom by remember { mutableStateOf(settings.enableZoom) }
     var desktopView by remember { mutableStateOf(settings.desktopView) }
     var thirdPartyCookies by remember { mutableStateOf(settings.thirdPartyCookies) }
@@ -337,6 +338,10 @@ fun SettingsScreen(
     LaunchedEffect(desktopView) {
         settingsManager.updateSettings { it.desktopView = desktopView }
     }
+    LaunchedEffect(selectedTheme) {
+        settingsManager.updateSettings { it.theme = selectedTheme }
+    }
+
     LaunchedEffect(thirdPartyCookies) {
         settingsManager.updateSettings { it.thirdPartyCookies = thirdPartyCookies }
     }
@@ -363,6 +368,64 @@ fun SettingsScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            item {
+                Text(
+                    text = "Appearance & Designer Themes",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                )
+            }
+
+            item {
+                SettingsCard {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Theme Palette",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Tailored color palettes with zero-stutter frosted styling.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        val themeOptions = listOf(
+                            "amoled" to "AMOLED Pitch Black",
+                            "obsidian" to "Obsidian Deep",
+                            "claude" to "Claude Warm Matte",
+                            "chatgpt" to "ChatGPT Carbon Frosted",
+                            "emerald" to "Cyber Emerald",
+                            "dark" to "Material Dark",
+                            "auto" to "System Auto / Light"
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            themeOptions.forEach { (key, label) ->
+                                val isSelected = selectedTheme == key
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = { selectedTheme = key },
+                                    label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                                    leadingIcon = if (isSelected) {
+                                        { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                    } else null
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             item {
                 Text(
                     text = stringResource(R.string.section_preferences),

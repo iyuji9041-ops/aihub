@@ -198,7 +198,7 @@ fun createWebViewForService(
         }
 
         setBackgroundColor(Color.TRANSPARENT)
-        setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        setLayerType(View.LAYER_TYPE_NONE, null)
         isFocusable = true
         isFocusableInTouchMode = true
         post { requestFocus(View.FOCUS_DOWN) }
@@ -251,8 +251,9 @@ fun updateWebViewSettings(
         cookieManager.setAcceptCookie(true)
         cookieManager.setAcceptThirdPartyCookies(webView, settings.thirdPartyCookies)
 
-        setSupportZoom(settings.enableZoom)
-        builtInZoomControls = settings.enableZoom
+        val enableZoom = settings.enableZoom || settings.desktopView
+        setSupportZoom(enableZoom)
+        builtInZoomControls = enableZoom
         displayZoomControls = false
         textZoom = percent
         defaultFontSize = (baseSize * scale).roundToInt()
@@ -307,7 +308,7 @@ fun updateWebViewSettings(
         }
     }
 
-    webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+    webView.setLayerType(View.LAYER_TYPE_NONE, null)
 
     if (reload) webView.reload()
 }

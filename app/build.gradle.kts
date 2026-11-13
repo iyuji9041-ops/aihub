@@ -17,8 +17,8 @@ android {
         minSdk = 26
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 15
-        versionName = "3.0.2"
+        versionCode = 16
+        versionName = "3.1.0"
     }
 
     compileOptions {
@@ -36,10 +36,6 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
     }
 
     dependenciesInfo {

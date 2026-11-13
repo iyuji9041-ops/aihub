@@ -53,6 +53,37 @@ class CustomWebViewClient(
             onLoadingStateChange(false)
 
             if (view != null && !isAuthOrChallengeUrl(url)) {
+                val isDesktop = context.settingsManager.settingsFlow.value.desktopView
+                val viewportJs = if (isDesktop) {
+                    """
+                    (function() {
+                        try {
+                            let meta = document.querySelector('meta[name="viewport"]');
+                            if (!meta) {
+                                meta = document.createElement('meta');
+                                meta.name = 'viewport';
+                                document.head.appendChild(meta);
+                            }
+                            meta.content = 'width=1280, initial-scale=0.35, minimum-scale=0.25, maximum-scale=5.0, user-scalable=yes';
+                            window.dispatchEvent(new Event('resize'));
+                        } catch(e) {}
+                    })();
+                    """.trimIndent()
+                } else {
+                    """
+                    (function() {
+                        try {
+                            let meta = document.querySelector('meta[name="viewport"]');
+                            if (meta) {
+                                meta.content = 'width=device-width, initial-scale=1.0';
+                                window.dispatchEvent(new Event('resize'));
+                            }
+                        } catch(e) {}
+                    })();
+                    """.trimIndent()
+                }
+                view.evaluateJavascript(viewportJs, null)
+
                 injectBlobInterceptor(view)
                 injectShareInterceptor(view)
                 injectCustomJs(view)

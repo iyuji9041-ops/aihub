@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -63,6 +64,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -160,6 +164,15 @@ fun AiHubApp(
     // Feature 4: Broadcast Bar
     var showBroadcastBar by remember { mutableStateOf(false) }
 
+    // Bento Home Dashboard
+    var showHomeDashboard by remember { mutableStateOf(false) }
+
+    // Full-Screen Immersive Mode
+    var isImmersiveMode by remember { mutableStateOf(false) }
+
+    // Throttled progress update state
+    var lastReportedProgress by remember { mutableIntStateOf(0) }
+
     var backPressedTime by remember { mutableLongStateOf(0L) }
     var showLinkDialog by remember { mutableStateOf(false) }
     var selectedLink by remember { mutableStateOf<LinkData?>(null) }
@@ -179,12 +192,79 @@ fun AiHubApp(
     val loadedServices = remember { mutableStateSetOf<String>() }
     val serviceAccessOrder = remember { mutableListOf<String>() }
 
-    // Feature 1: Smart RAM Freezer
+    // Feature 1: Smart RAM Freezer & Instant Telemetry
+    val frozenServices = remember { mutableStateSetOf<String>() }
     val pauseJobs = remember { mutableStateMapOf<String, Job>() }
+
+    val enabledServiceList = remember(settings.enabledServices, aiServices) {
+        val enabledSet = settings.enabledServices
+        val orderMap = settings.serviceOrder.withIndex().associate { it.value to it.index }
+        aiServices.filter { it.name in enabledSet }.sortedBy { orderMap[it.name] ?: Int.MAX_VALUE }
+    }
+
+    fun cycleService(forward: Boolean) {
+        if (enabledServiceList.isEmpty()) return
+        val currentIndex = enabledServiceList.indexOfFirst { it.name == selectedService.name }
+        if (currentIndex == -1) return
+        val nextIndex = if (forward) {
+            (currentIndex + 1) % enabledServiceList.size
+        } else {
+            (currentIndex - 1 + enabledServiceList.size) % enabledServiceList.size
+        }
+        selectedService = enabledServiceList[nextIndex]
+    }
+
+    fun toggleImmersiveMode() {
+        isImmersiveMode = !isImmersiveMode
+        val window = context.window
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        if (isImmersiveMode) {
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        } else {
+            insetsController.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    fun freezeServiceNow(serviceName: String) {
+        if (serviceName.isBlank()) return
+        pauseJobs.remove(serviceName)?.cancel()
+        webViews[serviceName]?.onPause()
+        frozenServices.add(serviceName)
+        Toast.makeText(context, "❄️ Frozen $serviceName (0% CPU)", Toast.LENGTH_SHORT).show()
+    }
+
+    fun freezeAllBackgroundServices() {
+        var count = 0
+        webViews.forEach { (name, wv) ->
+            if (name != selectedService.name && (!isSplitScreenMode || name != secondaryService.name)) {
+                pauseJobs.remove(name)?.cancel()
+                wv.onPause()
+                frozenServices.add(name)
+                count++
+            }
+        }
+        Toast.makeText(context, "❄️ Frozen $count background tab(s) (0% CPU)", Toast.LENGTH_SHORT).show()
+    }
+
+    fun wakeService(serviceName: String) {
+        if (serviceName.isBlank()) return
+        pauseJobs.remove(serviceName)?.cancel()
+        webViews[serviceName]?.let { wv ->
+            wv.onResume()
+            wv.resumeTimers()
+        }
+        frozenServices.remove(serviceName)
+        Toast.makeText(context, "⚡ Woke $serviceName", Toast.LENGTH_SHORT).show()
+    }
 
     fun resumeService(serviceName: String) {
         pauseJobs.remove(serviceName)?.cancel()
-        webViews[serviceName]?.onResume()
+        webViews[serviceName]?.let { wv ->
+            wv.onResume()
+            wv.resumeTimers()
+        }
+        frozenServices.remove(serviceName)
     }
 
     fun schedulePauseService(serviceName: String) {
@@ -193,6 +273,7 @@ fun AiHubApp(
         pauseJobs[serviceName] = scope.launch {
             delay(20_000L) // 20-second grace period before freezing RAM/timers
             webViews[serviceName]?.onPause()
+            frozenServices.add(serviceName)
         }
     }
 
@@ -269,7 +350,10 @@ fun AiHubApp(
             activity = context,
             settings = settings,
             onProgressUpdate = { progress ->
-                updateServiceState(service.name) { it.copy(progress = progress) }
+                if (progress == 100 || kotlin.math.abs(progress - lastReportedProgress) >= 10) {
+                    lastReportedProgress = progress
+                    updateServiceState(service.name) { it.copy(progress = progress) }
+                }
             },
             onLoadingStateChange = { isLoading ->
                 updateServiceState(service.name) {
@@ -323,9 +407,15 @@ fun AiHubApp(
             when (event) {
                 Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
                     webViews.values.forEach { it.onPause() }
+                    try {
+                        WebView(context).pauseTimers()
+                    } catch (_: Exception) {}
                 }
 
                 Lifecycle.Event.ON_RESUME -> {
+                    try {
+                        WebView(context).resumeTimers()
+                    } catch (_: Exception) {}
                     resumeService(selectedService.name)
                     if (isSplitScreenMode) {
                         resumeService(secondaryService.name)
@@ -341,6 +431,7 @@ fun AiHubApp(
                     webViews.clear()
                     serviceAccessOrder.clear()
                     serviceStates.clear()
+                    frozenServices.clear()
                 }
 
                 else -> {}
@@ -350,6 +441,11 @@ fun AiHubApp(
         lifecycleOwner.lifecycle.addObserver(observer)
 
         onDispose {
+            try {
+                val window = context.window
+                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            } catch (_: Exception) {}
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
@@ -556,20 +652,91 @@ fun AiHubApp(
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing),
+                .imePadding(),
             topBar = {
                 AiHubAppBar(
-                    isLoading = currentState.isLoading && !hasCurrentError,
-                    loadingProgress = currentState.progress,
-                    loadingColor = selectedService.accentColor,
                     selectedService = selectedService,
                     onMenuClick = {
                         scope.launch {
                             if (drawerState.isClosed) drawerState.open() else drawerState.close()
                         }
                     },
-                    onSettingsClick = { showSettingsScreen = true },
-                    onAboutClick = { showAbout = true },
+                    onHomeClick = { showHomeDashboard = !showHomeDashboard },
+                    isHomeActive = showHomeDashboard,
+                    onFreezeBackgroundTabs = { freezeAllBackgroundServices() },
+                    isAllBackgroundFrozen = webViews.size <= 1 || frozenServices.size >= (webViews.size - (if (isSplitScreenMode) 2 else 1)),
+                    frozenServices = frozenServices,
+                    onPromptVaultClick = { showPromptVault = true },
+                    onBroadcastClick = { showBroadcastBar = !showBroadcastBar },
+                    isBroadcastActive = showBroadcastBar,
+                    onSplitScreenToggle = {
+                        isSplitScreenMode = !isSplitScreenMode
+                        if (isSplitScreenMode && secondaryService.name == selectedService.name) {
+                            secondaryService = aiServices.firstOrNull { it.name != selectedService.name }
+                                ?: aiServices.first()
+                        }
+                    },
+                    isSplitScreenActive = isSplitScreenMode,
+                    onToggleDesktopMode = {
+                        settingsManager.updateSettings { it.desktopView = !it.desktopView }
+                        applySettingsToAllWebViews(true)
+                    },
+                    isDesktopMode = settings.desktopView,
+                    onToggleImmersiveMode = { toggleImmersiveMode() },
+                    isImmersiveMode = isImmersiveMode,
+                    onNextService = { cycleService(forward = true) },
+                    onPreviousService = { cycleService(forward = false) },
+                    loadedServiceNames = webViews.keys,
+                    allServices = aiServices,
+                    onReload = { service ->
+                        webViews[service.name]?.reload()
+
+                        updateServiceState(service.name) { state ->
+                            state.copy(
+                                webViewState = WebViewState.LOADING,
+                                isLoading = true,
+                                error = null,
+                                progress = 0
+                            )
+                        }
+                    },
+                    onServiceSelected = { service ->
+                        selectedService = service
+                        showHomeDashboard = false
+                    },
+                    onKillService = { service ->
+                        val serviceId = service.name
+                        if (serviceId == selectedService.name) return@AiHubAppBar
+
+                        webViews[serviceId]?.let { webView ->
+                            (webView.parent as? ViewGroup)?.removeView(webView)
+                            webView.destroy()
+                            webViews.remove(serviceId)
+                        }
+
+                        serviceStates.remove(serviceId)
+                        loadedServices.remove(serviceId)
+                        serviceAccessOrder.remove(serviceId)
+                        frozenServices.remove(serviceId)
+
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.msg_service_killed, service.name),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onToggleFreeze = { service ->
+                        if (service.name in frozenServices) {
+                            wakeService(service.name)
+                        } else {
+                            freezeServiceNow(service.name)
+                        }
+                    },
+                    onFreezeAllBackground = { freezeAllBackgroundServices() },
+                    onFreezeAndExit = {
+                        freezeAllBackgroundServices()
+                        context.finishAndRemoveTask()
+                    },
                     onClearSiteData = {
                         val serviceId = selectedService.name
                         val webView = webViews[serviceId]
@@ -626,54 +793,11 @@ fun AiHubApp(
                             ).show()
                         }
                     },
-                    loadedServiceNames = webViews.keys,
-                    allServices = aiServices,
-                    onReload = { service ->
-                        webViews[service.name]?.reload()
-
-                        updateServiceState(service.name) { state ->
-                            state.copy(
-                                webViewState = WebViewState.LOADING,
-                                isLoading = true,
-                                error = null,
-                                progress = 0
-                            )
-                        }
-                    },
-                    onServiceSelected = { service ->
-                        selectedService = service
-                    },
-                    onKillService = { service ->
-                        val serviceId = service.name
-                        if (serviceId == selectedService.name) return@AiHubAppBar
-
-                        webViews[serviceId]?.let { webView ->
-                            (webView.parent as? ViewGroup)?.removeView(webView)
-                            webView.destroy()
-                            webViews.remove(serviceId)
-                        }
-
-                        serviceStates.remove(serviceId)
-                        loadedServices.remove(serviceId)
-                        serviceAccessOrder.remove(serviceId)
-
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.msg_service_killed, service.name),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    },
-                    onPromptVaultClick = { showPromptVault = true },
-                    onBroadcastClick = { showBroadcastBar = !showBroadcastBar },
-                    isBroadcastActive = showBroadcastBar,
-                    onSplitScreenToggle = {
-                        isSplitScreenMode = !isSplitScreenMode
-                        if (isSplitScreenMode && secondaryService.name == selectedService.name) {
-                            secondaryService = aiServices.firstOrNull { it.name != selectedService.name }
-                                ?: aiServices.first()
-                        }
-                    },
-                    isSplitScreenActive = isSplitScreenMode
+                    onSettingsClick = { showSettingsScreen = true },
+                    onAboutClick = { showAbout = true },
+                    isLoading = currentState.isLoading && !hasCurrentError,
+                    loadingProgress = currentState.progress,
+                    loadingColor = selectedService.accentColor
                 )
             },
             snackbarHost = {
@@ -692,7 +816,40 @@ fun AiHubApp(
                     .padding(innerPadding)
                     .background(MaterialTheme.colorScheme.background)
             ) {
-                if (!isSplitScreenMode) {
+                if (showHomeDashboard) {
+                    BentoHomeScreen(
+                        aiServices = aiServices,
+                        enabledServices = settings.enabledServices,
+                        favoriteServices = settings.favoriteServices,
+                        loadedServiceNames = webViews.keys,
+                        frozenServices = frozenServices,
+                        onServiceSelected = { service ->
+                            selectedService = service
+                            showHomeDashboard = false
+                        },
+                        onToggleFavorite = { serviceId ->
+                            settingsManager.updateSettings { current ->
+                                current.favoriteServices = if (serviceId in current.favoriteServices) {
+                                    current.favoriteServices - serviceId
+                                } else {
+                                    current.favoriteServices + serviceId
+                                }
+                            }
+                        },
+                        onFreezeAllBackground = { freezeAllBackgroundServices() },
+                        onRequestNewAi = { showRequestNewAiScreen = true },
+                        onPromptSubmit = { promptText ->
+                            val wv = getOrCreateWebView(selectedService)
+                            wv.evaluateJavascript(
+                                buildPromptInjectionJs(promptText, autoSubmit = true),
+                                null
+                            )
+                            showHomeDashboard = false
+                            Toast.makeText(context, "Prompt sent to ${selectedService.name}!", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (!isSplitScreenMode) {
                     // Normal Single Pane View
                     Box(modifier = Modifier.fillMaxSize()) {
                         AndroidView(
@@ -707,6 +864,12 @@ fun AiHubApp(
                             },
                             update = { root ->
                                 val currentWv = getOrCreateWebView(selectedService)
+                                for (i in root.childCount - 1 downTo 0) {
+                                    val child = root.getChildAt(i)
+                                    if (child != currentWv) {
+                                        root.removeViewAt(i)
+                                    }
+                                }
                                 if (currentWv.parent != root) {
                                     (currentWv.parent as? ViewGroup)?.removeView(currentWv)
                                     root.addView(currentWv)
@@ -761,6 +924,12 @@ fun AiHubApp(
                                 },
                                 update = { root ->
                                     val primaryWv = getOrCreateWebView(selectedService)
+                                    for (i in root.childCount - 1 downTo 0) {
+                                        val child = root.getChildAt(i)
+                                        if (child != primaryWv) {
+                                            root.removeViewAt(i)
+                                        }
+                                    }
                                     if (primaryWv.parent != root) {
                                         (primaryWv.parent as? ViewGroup)?.removeView(primaryWv)
                                         root.addView(primaryWv)
@@ -797,6 +966,12 @@ fun AiHubApp(
                                 },
                                 update = { root ->
                                     val secWv = getOrCreateWebView(secondaryService)
+                                    for (i in root.childCount - 1 downTo 0) {
+                                        val child = root.getChildAt(i)
+                                        if (child != secWv) {
+                                            root.removeViewAt(i)
+                                        }
+                                    }
                                     if (secWv.parent != root) {
                                         (secWv.parent as? ViewGroup)?.removeView(secWv)
                                         root.addView(secWv)
@@ -838,7 +1013,7 @@ fun AiHubApp(
         }
     }
 
-    BackHandler(enabled = !showSettingsScreen && !showManageServices) {
+    BackHandler(enabled = !showSettingsScreen && !showManageServices && !showCustomInjectionScreen && !showRequestNewAiScreen && !showAbout) {
         when {
             drawerState.isOpen -> {
                 scope.launch { drawerState.close() }
@@ -846,6 +1021,10 @@ fun AiHubApp(
 
             showBroadcastBar -> {
                 showBroadcastBar = false
+            }
+
+            showHomeDashboard -> {
+                showHomeDashboard = false
             }
 
             isSplitScreenMode -> {

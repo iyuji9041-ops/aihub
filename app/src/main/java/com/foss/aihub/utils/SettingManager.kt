@@ -321,17 +321,30 @@ class SettingsManager(context: Context) {
     // --- Custom AI Services (Feature 2) ---
     fun loadCustomServices(): List<CustomAiService> {
         val json = sharedPref.getString(KEY_CUSTOM_AI_SERVICES, null)
-        return if (!json.isNullOrEmpty()) {
+        val services: MutableList<CustomAiService> = if (!json.isNullOrEmpty()) {
             try {
                 val type = object : TypeToken<List<CustomAiService>>() {}.type
-                gson.fromJson(json, type) ?: emptyList()
+                gson.fromJson<List<CustomAiService>>(json, type)?.toMutableList() ?: mutableListOf()
             } catch (e: Exception) {
                 Log.e("SettingsManager", "Error loading custom AI services", e)
-                emptyList()
+                mutableListOf()
             }
         } else {
-            emptyList()
+            mutableListOf()
         }
+
+        // Pre-seed ElevenLabs if not present
+        if (services.none { it.name.equals("ElevenLabs", ignoreCase = true) }) {
+            val elevenLabs = CustomAiService(
+                name = "ElevenLabs",
+                url = "https://elevenlabs.io/app/speech-synthesis/text-to-speech",
+                category = "Audio"
+            )
+            services.add(elevenLabs)
+            saveCustomServices(services)
+        }
+
+        return services
     }
 
     fun saveCustomServices(services: List<CustomAiService>) {

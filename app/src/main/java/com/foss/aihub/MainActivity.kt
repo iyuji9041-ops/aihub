@@ -12,6 +12,7 @@ import android.webkit.ValueCallback
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -135,6 +136,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         handleIntentText(intent)
 
@@ -191,7 +193,7 @@ class MainActivity : ComponentActivity() {
 
     private suspend fun loadAllData(): Pair<List<AiService>, HashSet<String>> {
         val domainsFile = File(filesDir, DOMAINS_FILE)
-        val domainsSet = if (domainsFile.exists()) {
+        var domainsSet = if (domainsFile.exists()) {
             domainsFile.bufferedReader().useLines { lines ->
                 lines.map { it.trim() }.filter { it.isNotBlank() }.toHashSet()
             }
@@ -199,16 +201,27 @@ class MainActivity : ComponentActivity() {
             HashSet()
         }
 
-        val services = if (File(filesDir, AI_SERVICES_FILE).exists()) {
+        var services = if (File(filesDir, AI_SERVICES_FILE).exists()) {
             loadServices(this)
         } else {
             emptyList()
         }
 
         if (domainsSet.isEmpty() || services.isEmpty()) {
-            CloudDataHandler.updateAiServices(this)
-            CloudDataHandler.updateDomains(this)
-            return loadAllData()
+            try {
+                CloudDataHandler.updateAiServices(this)
+                CloudDataHandler.updateDomains(this)
+            } catch (_: Exception) {
+                // Ignore cloud update failure and rely on local built-in fallback
+            }
+            CloudDataHandler.ensureFallbackData(this)
+
+            if (domainsFile.exists()) {
+                domainsSet = domainsFile.bufferedReader().useLines { lines ->
+                    lines.map { it.trim() }.filter { it.isNotBlank() }.toHashSet()
+                }
+            }
+            services = loadServices(this)
         }
         return services to domainsSet
     }

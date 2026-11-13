@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -32,12 +33,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.rounded.AcUnit
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ExitToApp
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
@@ -53,6 +59,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,15 +68,24 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.foss.aihub.R
 import com.foss.aihub.models.AiService
+import com.foss.aihub.ui.components.TooltipIconButton
 
 @Composable
 fun ActiveServicesDialog(
     activeServices: List<AiService>,
     selectedServiceId: String,
+    frozenServices: Set<String> = emptySet(),
     onServiceSelected: (AiService) -> Unit,
     onKillService: (AiService) -> Unit,
+    onToggleFreeze: (AiService) -> Unit = {},
+    onFreezeAllBackground: () -> Unit = {},
+    onFreezeAndExit: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
+    val totalCount = activeServices.size
+    val frozenCount = activeServices.count { it.name in frozenServices }
+    val runningCount = totalCount - frozenCount
+
     Dialog(
         onDismissRequest = onDismiss, properties = DialogProperties(
             usePlatformDefaultWidth = false, decorFitsSystemWindows = false
@@ -85,44 +101,54 @@ fun ActiveServicesDialog(
         ) {
             Surface(
                 modifier = Modifier
-                    .fillMaxWidth(0.9f)
+                    .fillMaxWidth(0.92f)
                     .wrapContentHeight()
-                    .shadow(16.dp, shape = RoundedCornerShape(36.dp), clip = false),
-                shape = RoundedCornerShape(36.dp),
+                    .shadow(16.dp, shape = RoundedCornerShape(32.dp), clip = false),
+                shape = RoundedCornerShape(32.dp),
                 tonalElevation = 6.dp,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 24.dp)
+                        .padding(vertical = 20.dp)
                 ) {
+                    // Header
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp),
+                            .padding(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = stringResource(R.string.title_active_ai_services),
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Column {
+                            Text(
+                                text = stringResource(R.string.title_active_ai_services),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Live Process & RAM Freeze Manager",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
                         var closePressed by remember { mutableStateOf(false) }
                         val closeRotation by animateFloatAsState(
                             targetValue = if (closePressed) 90f else 0f,
                             animationSpec = tween(300),
                             label = "close_rotation"
                         )
-                        IconButton(
+                        TooltipIconButton(
+                            tooltipText = "Close Dialog",
                             onClick = {
                                 closePressed = true
                                 onDismiss()
                             },
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(36.dp)
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                                 .rotate(closeRotation)
@@ -131,43 +157,126 @@ fun ActiveServicesDialog(
                                 Icons.Rounded.Close,
                                 contentDescription = stringResource(R.string.action_close),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    Box(
+                    // Telemetry Banner (Active vs Frozen CPU/RAM status)
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp)
-                            .height(2.dp)
-                            .background(
-                                brush = Brush.horizontalGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                        MaterialTheme.colorScheme.primary,
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                            .padding(horizontal = 20.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                        ),
+                        border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "Active: $runningCount",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF75F98A)
                                     )
-                                )
-                            )
-                    )
+                                    Text(
+                                        text = "  |  ",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                    Text(
+                                        text = "Frozen: $frozenCount (0% CPU)",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF9DD2FF)
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                FilledTonalButton(
+                                    onClick = onFreezeAllBackground,
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.AcUnit,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = Color(0xFF9DD2FF)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        "Freeze Background",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1
+                                    )
+                                }
+
+                                OutlinedButton(
+                                    onClick = onFreezeAndExit,
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.error
+                                    )
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.ExitToApp,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        "Freeze & Exit",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 400.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            .heightIn(max = 380.dp),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(activeServices, key = { it.name }) { service ->
                             val isSelected = service.name == selectedServiceId
+                            val isFrozen = service.name in frozenServices
                             ActiveServiceDialogItem(
                                 service = service,
                                 isSelected = isSelected,
+                                isFrozen = isFrozen,
                                 onSelect = { onServiceSelected(service) },
-                                onKill = { onKillService(service) })
+                                onToggleFreeze = { onToggleFreeze(service) },
+                                onKill = { onKillService(service) }
+                            )
                         }
                     }
                 }
@@ -178,7 +287,12 @@ fun ActiveServicesDialog(
 
 @Composable
 private fun ActiveServiceDialogItem(
-    service: AiService, isSelected: Boolean, onSelect: () -> Unit, onKill: () -> Unit
+    service: AiService,
+    isSelected: Boolean,
+    isFrozen: Boolean,
+    onSelect: () -> Unit,
+    onToggleFreeze: () -> Unit,
+    onKill: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -196,25 +310,30 @@ private fun ActiveServiceDialogItem(
                 interactionSource = interactionSource,
                 indication = ripple(bounded = true),
                 onClick = onSelect
-            ), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(
+            ),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
             containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.secondaryContainer
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
             } else {
                 MaterialTheme.colorScheme.surface
             }
-        ), elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isSelected) 0.dp else 2.dp, pressedElevation = 4.dp
+        ),
+        border = BorderStroke(
+            0.8.dp,
+            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(38.dp)
                     .clip(CircleShape)
                     .background(service.accentColor.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
@@ -227,36 +346,74 @@ private fun ActiveServiceDialogItem(
                 )
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-            Text(
-                text = service.name,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
-                else MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-
-            if (isSelected) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = stringResource(R.string.label_selected),
-                    tint = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.size(24.dp)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = service.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-            } else {
-                IconButton(
-                    onClick = onKill, modifier = Modifier.size(36.dp)
+
+                // Status Badge Pill
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (isFrozen) Color(0xFF162D4A) else Color(0xFF133618),
+                    modifier = Modifier.padding(top = 2.dp)
+                ) {
+                    Text(
+                        text = if (isFrozen) "❄️ FROZEN • 0% CPU" else "🟢 ACTIVE",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isFrozen) Color(0xFF9DD2FF) else Color(0xFF75F98A),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                    )
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Freeze/Wake Toggle Button
+                TooltipIconButton(
+                    tooltipText = if (isFrozen) "Wake Tab" else "Freeze Tab",
+                    onClick = onToggleFreeze,
+                    modifier = Modifier.size(34.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = stringResource(R.string.action_remove_service),
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(20.dp)
+                        imageVector = if (isFrozen) Icons.Rounded.PlayArrow else Icons.Rounded.AcUnit,
+                        contentDescription = if (isFrozen) "Wake" else "Freeze",
+                        tint = if (isFrozen) Color(0xFF9DD2FF) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
+                }
+
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = stringResource(R.string.label_selected),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .padding(end = 4.dp)
+                    )
+                } else {
+                    TooltipIconButton(
+                        tooltipText = "Kill Process",
+                        onClick = onKill,
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = stringResource(R.string.action_remove_service),
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
