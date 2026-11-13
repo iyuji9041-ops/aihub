@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
 import com.foss.aihub.models.AppSettings
+import com.foss.aihub.models.CustomAiService
+import com.foss.aihub.models.PromptItem
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -83,6 +85,9 @@ class SettingsManager(context: Context) {
         private const val KEY_PREFERRED_LOGIN_REQUIRED = "preferredLoginRequired"
 
         private const val KEY_ONBOARDING_COMPLETED = "onboardingCompleted"
+
+        private const val KEY_CUSTOM_AI_SERVICES = "customAiServices"
+        private const val KEY_SAVED_PROMPTS = "savedPrompts"
     }
 
     private fun migrateToNewVersion() {
@@ -311,5 +316,116 @@ class SettingsManager(context: Context) {
 
     fun setOnboardingCompleted(completed: Boolean = true) {
         sharedPref.edit { putBoolean(KEY_ONBOARDING_COMPLETED, completed) }
+    }
+
+    // --- Custom AI Services (Feature 2) ---
+    fun loadCustomServices(): List<CustomAiService> {
+        val json = sharedPref.getString(KEY_CUSTOM_AI_SERVICES, null)
+        return if (!json.isNullOrEmpty()) {
+            try {
+                val type = object : TypeToken<List<CustomAiService>>() {}.type
+                gson.fromJson(json, type) ?: emptyList()
+            } catch (e: Exception) {
+                Log.e("SettingsManager", "Error loading custom AI services", e)
+                emptyList()
+            }
+        } else {
+            emptyList()
+        }
+    }
+
+    fun saveCustomServices(services: List<CustomAiService>) {
+        val json = gson.toJson(services)
+        sharedPref.edit { putString(KEY_CUSTOM_AI_SERVICES, json) }
+    }
+
+    fun addCustomService(service: CustomAiService) {
+        val current = loadCustomServices().toMutableList()
+        current.removeAll { it.name.equals(service.name, ignoreCase = true) }
+        current.add(service)
+        saveCustomServices(current)
+
+        // Also add to enabled services and service order
+        val enabled = loadEnabledServices().toMutableSet()
+        enabled.add(service.name)
+        saveEnabledServices(enabled)
+
+        val order = loadServiceOrder().toMutableList()
+        if (service.name !in order) {
+            order.add(service.name)
+            saveServiceOrder(order)
+        }
+    }
+
+    fun deleteCustomService(serviceName: String) {
+        val current = loadCustomServices().filterNot { it.name.equals(serviceName, ignoreCase = true) }
+        saveCustomServices(current)
+
+        val enabled = loadEnabledServices().toMutableSet()
+        enabled.remove(serviceName)
+        saveEnabledServices(enabled)
+
+        val order = loadServiceOrder().toMutableList()
+        order.remove(serviceName)
+        saveServiceOrder(order)
+    }
+
+    // --- Quick Prompt Vault (Feature 3) ---
+    fun loadSavedPrompts(): List<PromptItem> {
+        val json = sharedPref.getString(KEY_SAVED_PROMPTS, null)
+        if (!json.isNullOrEmpty()) {
+            try {
+                val type = object : TypeToken<List<PromptItem>>() {}.type
+                val loaded: List<PromptItem>? = gson.fromJson(json, type)
+                if (!loaded.isNullOrEmpty()) return loaded
+            } catch (e: Exception) {
+                Log.e("SettingsManager", "Error loading prompts", e)
+            }
+        }
+        // Default seeded prompts
+        val defaultPrompts = listOf(
+            PromptItem(
+                id = "default_debug",
+                title = "Fix Code / Debug Bug",
+                content = "Analyze the following code and error log. Provide the exact fix, explain why the bug occurred, and ensure optimal performance and safety:\n\n"
+            ),
+            PromptItem(
+                id = "default_explain",
+                title = "Explain Simply",
+                content = "Explain this concept in simple terms with a real-world analogy and concise examples:\n\n"
+            ),
+            PromptItem(
+                id = "default_review",
+                title = "Code Review & Refactor",
+                content = "Perform a strict code review of the following code. Identify potential edge cases, security flaws, performance bottlenecks, and refactoring opportunities:\n\n"
+            )
+        )
+        saveSavedPrompts(defaultPrompts)
+        return defaultPrompts
+    }
+
+    fun saveSavedPrompts(prompts: List<PromptItem>) {
+        val json = gson.toJson(prompts)
+        sharedPref.edit { putString(KEY_SAVED_PROMPTS, json) }
+    }
+
+    fun addSavedPrompt(prompt: PromptItem) {
+        val current = loadSavedPrompts().toMutableList()
+        current.add(0, prompt)
+        saveSavedPrompts(current)
+    }
+
+    fun updateSavedPrompt(prompt: PromptItem) {
+        val current = loadSavedPrompts().toMutableList()
+        val index = current.indexOfFirst { it.id == prompt.id }
+        if (index != -1) {
+            current[index] = prompt
+            saveSavedPrompts(current)
+        }
+    }
+
+    fun deleteSavedPrompt(promptId: String) {
+        val current = loadSavedPrompts().filterNot { it.id == promptId }
+        saveSavedPrompts(current)
     }
 }

@@ -47,6 +47,31 @@ class MainActivity : ComponentActivity() {
     private var onboardingComplete by mutableStateOf(false)
     private var aiServices by mutableStateOf<List<AiService>?>(null)
     private var domains: HashSet<String>? = null
+    var pendingSharedText by mutableStateOf<String?>(null)
+
+    private fun handleIntentText(intent: Intent?) {
+        if (intent == null) return
+        val text = when (intent.action) {
+            Intent.ACTION_PROCESS_TEXT -> {
+                intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
+            }
+            Intent.ACTION_SEND -> {
+                if (intent.type?.startsWith("text/") == true) {
+                    intent.getStringExtra(Intent.EXTRA_TEXT)
+                } else null
+            }
+            else -> null
+        }
+        if (!text.isNullOrBlank()) {
+            pendingSharedText = text
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntentText(intent)
+    }
 
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -111,6 +136,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        handleIntentText(intent)
 
         settingsManager = SettingsManager(this)
         onboardingComplete = settingsManager.isOnboardingCompleted()
@@ -149,9 +175,12 @@ class MainActivity : ComponentActivity() {
 
                     if (isDataReady && aiServices != null) {
                         AiHubApp(
-                            this@MainActivity,
-                            aiServices!!,
-                            onServicesUpdated = { newList -> aiServices = newList })
+                            context = this@MainActivity,
+                            aiServices = aiServices!!,
+                            onServicesUpdated = { newList -> aiServices = newList },
+                            initialSharedText = pendingSharedText,
+                            onClearSharedText = { pendingSharedText = null }
+                        )
                     } else {
                         Box(modifier = Modifier.fillMaxSize())
                     }

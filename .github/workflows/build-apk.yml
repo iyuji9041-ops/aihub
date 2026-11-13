@@ -7,6 +7,9 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Debug APK
@@ -29,9 +32,30 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace --no-daemon
 
-      - name: Upload Debug APK
+      - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: AI-Hub-Debug-APK
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Create or Update GitHub Release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          apk_path=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
+          if [ -f "$apk_path" ]; then
+            gh release create v3.0.2 "$apk_path" \
+              --title "v3.0.2 - AI Hub with Smart RAM Freezer, Split-Screen & Prompt Vault" \
+              --notes "### AI Hub v3.0.2 Release
+- Rebranded applicationId to com.zaswix.aihub (AI Hub)
+- Google OAuth 2.0 (403 disallowed_useragent) & Cloudflare Turnstile fixes across all engines
+- Feature 1: Smart RAM Freezer (Auto-pauses background WebViews after 20-second grace period; resumes immediately when active)
+- Feature 2: Local 'Add Custom AI' Manager (Directly add any AI service, Ollama instance, or web URL with category tagging and persistence)
+- Feature 3: Quick Prompt Vault (Material 3 BottomSheet to save, edit, delete, and 1-tap inject/send prompts into active AI tabs)
+- Feature 4: One-Prompt Broadcast Bar (Inject and submit prompts across all loaded AI tabs simultaneously)
+- Feature 5: Dual Split-Screen Compare Mode (Real-time vertical split compare view with model switching dropdown)
+- Feature 6: System-Wide 'Ask AI Hub' (ACTION_PROCESS_TEXT & ACTION_SEND intent filters to send selected text from any app into AI Hub)" || \
+            gh release upload v3.0.2 "$apk_path" --clobber
+          fi

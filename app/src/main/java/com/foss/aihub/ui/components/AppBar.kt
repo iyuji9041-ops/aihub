@@ -26,9 +26,12 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.Campaign
+import androidx.compose.material.icons.rounded.ElectricBolt
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.VerticalSplit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -75,6 +78,11 @@ fun AiHubAppBar(
     allServices: List<AiService>,
     onReload: (AiService) -> Unit,
     onServiceSelected: (AiService) -> Unit,
+    onPromptVaultClick: () -> Unit = {},
+    onBroadcastClick: () -> Unit = {},
+    isBroadcastActive: Boolean = false,
+    onSplitScreenToggle: () -> Unit = {},
+    isSplitScreenActive: Boolean = false,
     isLoading: Boolean = false,
     loadingProgress: Int = 0,
     loadingColor: Color = colorScheme.primary
@@ -126,6 +134,51 @@ fun AiHubAppBar(
                 }
             },
             actions = {
+                // Quick Prompt Vault button
+                IconButton(
+                    onClick = onPromptVaultClick,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.ElectricBolt,
+                        contentDescription = "Quick Prompt Vault",
+                        tint = colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                // Broadcast Bar Toggle button
+                IconButton(
+                    onClick = onBroadcastClick,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Campaign,
+                        contentDescription = "Broadcast Prompt",
+                        tint = if (isBroadcastActive) colorScheme.primary else colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                // Split-Screen Compare Mode toggle button
+                IconButton(
+                    onClick = onSplitScreenToggle,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.VerticalSplit,
+                        contentDescription = "Dual Split-Screen Mode",
+                        tint = if (isSplitScreenActive) colorScheme.primary else colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
                 BadgedBox(
                     badge = {
                         if (loadedServiceNames.isNotEmpty()) {

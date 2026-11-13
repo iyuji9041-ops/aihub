@@ -10,21 +10,38 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.VerticalSplit
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DrawerValue.Closed
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -39,8 +56,10 @@ import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
@@ -57,31 +76,41 @@ import com.foss.aihub.models.UpdateResult
 import com.foss.aihub.models.WebViewState
 import com.foss.aihub.models.loadServices
 import com.foss.aihub.ui.components.AiHubAppBar
+import com.foss.aihub.ui.components.BroadcastBar
 import com.foss.aihub.ui.components.DrawerContent
 import com.foss.aihub.ui.components.ErrorOverlay
 import com.foss.aihub.ui.components.ErrorType
 import com.foss.aihub.ui.screens.dialogs.AppUpdateDialog
 import com.foss.aihub.ui.screens.dialogs.JsDialogHandler
 import com.foss.aihub.ui.screens.dialogs.LinkOptionsDialog
+import com.foss.aihub.ui.screens.dialogs.PromptVaultSheet
 import com.foss.aihub.ui.screens.dialogs.UpdateResultDialog
 import com.foss.aihub.ui.webview.createWebViewForService
 import com.foss.aihub.ui.webview.updateWebViewSettings
 import com.foss.aihub.utils.AppUpdateInfo
 import com.foss.aihub.utils.CloudDataHandler
 import com.foss.aihub.utils.SUPPORT_EMAIL
+import com.foss.aihub.utils.buildPromptInjectionJs
 import com.foss.aihub.utils.checkForUpdate
 import com.foss.aihub.utils.copyLinkToClipboard
 import com.foss.aihub.utils.openInExternalBrowser
 import com.foss.aihub.utils.performServiceUpdate
 import com.foss.aihub.utils.shareLink
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiHubApp(
-    context: MainActivity, aiServices: List<AiService>, onServicesUpdated: (List<AiService>) -> Unit
+    context: MainActivity,
+    aiServices: List<AiService>,
+    onServicesUpdated: (List<AiService>) -> Unit,
+    initialSharedText: String? = null,
+    onClearSharedText: () -> Unit = {}
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val configuration = LocalConfiguration.current
@@ -115,6 +144,22 @@ fun AiHubApp(
         mutableStateOf(aiServices.find { it.name == firstName } ?: aiServices.first())
     }
 
+    // Feature 5: Dual Split-Screen Compare Mode
+    var isSplitScreenMode by remember { mutableStateOf(false) }
+    var secondaryService by remember {
+        val second = aiServices.firstOrNull { it.name != selectedService.name }
+            ?: aiServices.getOrNull(1)
+            ?: aiServices.first()
+        mutableStateOf(second)
+    }
+
+    // Feature 3: Quick Prompt Vault
+    var showPromptVault by remember { mutableStateOf(false) }
+    val promptVaultSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // Feature 4: Broadcast Bar
+    var showBroadcastBar by remember { mutableStateOf(false) }
+
     var backPressedTime by remember { mutableLongStateOf(0L) }
     var showLinkDialog by remember { mutableStateOf(false) }
     var selectedLink by remember { mutableStateOf<LinkData?>(null) }
@@ -133,6 +178,23 @@ fun AiHubApp(
     val webViews = remember { mutableStateMapOf<String, WebView>() }
     val loadedServices = remember { mutableStateSetOf<String>() }
     val serviceAccessOrder = remember { mutableListOf<String>() }
+
+    // Feature 1: Smart RAM Freezer
+    val pauseJobs = remember { mutableStateMapOf<String, Job>() }
+
+    fun resumeService(serviceName: String) {
+        pauseJobs.remove(serviceName)?.cancel()
+        webViews[serviceName]?.onResume()
+    }
+
+    fun schedulePauseService(serviceName: String) {
+        if (serviceName.isBlank()) return
+        pauseJobs[serviceName]?.cancel()
+        pauseJobs[serviceName] = scope.launch {
+            delay(20_000L) // 20-second grace period before freezing RAM/timers
+            webViews[serviceName]?.onPause()
+        }
+    }
 
     var showUpdateDialog by remember { mutableStateOf(false) }
     var updateResult by remember { mutableStateOf<UpdateResult?>(null) }
@@ -197,10 +259,82 @@ fun AiHubApp(
         }
     }
 
+    fun getOrCreateWebView(service: AiService): WebView {
+        val existing = webViews[service.name]
+        if (existing != null) return existing
+
+        val webView = createWebViewForService(
+            context = context,
+            service = service,
+            activity = context,
+            settings = settings,
+            onProgressUpdate = { progress ->
+                updateServiceState(service.name) { it.copy(progress = progress) }
+            },
+            onLoadingStateChange = { isLoading ->
+                updateServiceState(service.name) {
+                    it.copy(
+                        isLoading = isLoading,
+                        webViewState = if (isLoading) WebViewState.LOADING else WebViewState.SUCCESS,
+                        progress = if (isLoading) 0 else it.progress
+                    )
+                }
+                if (isLoading) {
+                    updateServiceState(service.name) { it.copy(error = null) }
+                }
+            },
+            onLinkLongPress = { url, title, type ->
+                selectedLink = LinkData(url, title, type)
+                showLinkDialog = true
+            },
+            onError = { errorCode, description ->
+                updateServiceState(service.name) {
+                    it.copy(
+                        error = errorCode to description,
+                        webViewState = WebViewState.ERROR,
+                        isLoading = false
+                    )
+                }
+            },
+            onJsAlertRequest = { message, result ->
+                message?.let { jsDialog = JsDialog.Alert(it, result!!) }
+            },
+            onJsConfirmRequest = { message, result ->
+                message?.let { jsDialog = JsDialog.Confirm(it, result!!) }
+            },
+            onJsPromptRequest = { message, result ->
+                message?.let { jsDialog = JsDialog.Prompt(it, result!!) }
+            },
+            onJsBeforeUnloadRequest = { message, result ->
+                message?.let { jsDialog = JsDialog.BeforeUnload(it, result!!) }
+            },
+        )
+        updateWebViewSettings(webView, settings, false)
+        webViews[service.name] = webView
+        if (service.name !in serviceAccessOrder) {
+            serviceAccessOrder.add(0, service.name)
+        }
+        loadedServices.add(service.name)
+        return webView
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
+                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
+                    webViews.values.forEach { it.onPause() }
+                }
+
+                Lifecycle.Event.ON_RESUME -> {
+                    resumeService(selectedService.name)
+                    if (isSplitScreenMode) {
+                        resumeService(secondaryService.name)
+                    }
+                }
+
                 Lifecycle.Event.ON_DESTROY -> {
+                    pauseJobs.values.forEach { it.cancel() }
+                    pauseJobs.clear()
                     webViews.forEach { (_, webView) ->
                         webView.destroy()
                     }
@@ -220,68 +354,47 @@ fun AiHubApp(
         }
     }
 
+    // Feature 1: Smart RAM Freezer
+    LaunchedEffect(selectedService.name, secondaryService.name, isSplitScreenMode) {
+        val currentActive = if (isSplitScreenMode) {
+            setOf(selectedService.name, secondaryService.name)
+        } else {
+            setOf(selectedService.name)
+        }
+
+        currentActive.forEach { activeName ->
+            resumeService(activeName)
+        }
+
+        webViews.keys.forEach { name ->
+            if (name !in currentActive) {
+                schedulePauseService(name)
+            }
+        }
+    }
+
+    // Feature 6: System-Wide "Ask AI Hub"
+    LaunchedEffect(initialSharedText, selectedService.name) {
+        if (!initialSharedText.isNullOrBlank()) {
+            val wv = getOrCreateWebView(selectedService)
+            delay(500L)
+            wv.evaluateJavascript(
+                buildPromptInjectionJs(initialSharedText, autoSubmit = false),
+                null
+            )
+            Toast.makeText(
+                context,
+                "Shared text pasted into ${selectedService.name}",
+                Toast.LENGTH_SHORT
+            ).show()
+            onClearSharedText()
+        }
+    }
+
     LaunchedEffect(initialServiceNames) {
         initialServiceNames.forEach { serviceName ->
             val service = aiServices.find { it.name == serviceName } ?: return@forEach
-            if (!webViews.containsKey(serviceName)) {
-                val webView = createWebViewForService(
-                    context = context,
-                    service = service,
-                    activity = context,
-                    settings = settings,
-                    onProgressUpdate = { progress ->
-                        updateServiceState(serviceName) { it.copy(progress = progress) }
-                    },
-                    onLoadingStateChange = { isLoading ->
-                        updateServiceState(serviceName) {
-                            it.copy(
-                                isLoading = isLoading,
-                                webViewState = if (isLoading) WebViewState.LOADING else WebViewState.SUCCESS
-                            )
-                        }
-                        if (isLoading) {
-                            updateServiceState(serviceName) { it.copy(error = null) }
-                        }
-                    },
-                    onLinkLongPress = { url, title, type ->
-                        selectedLink = LinkData(url, title, type)
-                        showLinkDialog = true
-                    },
-                    onError = { errorCode, description ->
-                        updateServiceState(serviceName) {
-                            it.copy(
-                                error = errorCode to description,
-                                webViewState = WebViewState.ERROR,
-                                isLoading = false
-                            )
-                        }
-                    },
-                    onJsAlertRequest = { message, result ->
-                        message?.let {
-                            jsDialog = JsDialog.Alert(it, result!!)
-                        }
-                    },
-                    onJsConfirmRequest = { message, result ->
-                        message?.let {
-                            jsDialog = JsDialog.Confirm(it, result!!)
-                        }
-                    },
-                    onJsPromptRequest = { message, result ->
-                        message?.let {
-                            jsDialog = JsDialog.Prompt(it, result!!)
-                        }
-                    },
-                    onJsBeforeUnloadRequest = { message, result ->
-                        message?.let {
-                            jsDialog = JsDialog.BeforeUnload(it, result!!)
-                        }
-                    },
-                )
-                updateWebViewSettings(webView, settings, false)
-                webViews[serviceName] = webView
-                serviceAccessOrder.add(0, serviceName)
-                loadedServices.add(serviceName)
-            }
+            getOrCreateWebView(service)
         }
     }
 
@@ -550,6 +663,17 @@ fun AiHubApp(
                             Toast.LENGTH_SHORT
                         ).show()
                     },
+                    onPromptVaultClick = { showPromptVault = true },
+                    onBroadcastClick = { showBroadcastBar = !showBroadcastBar },
+                    isBroadcastActive = showBroadcastBar,
+                    onSplitScreenToggle = {
+                        isSplitScreenMode = !isSplitScreenMode
+                        if (isSplitScreenMode && secondaryService.name == selectedService.name) {
+                            secondaryService = aiServices.firstOrNull { it.name != selectedService.name }
+                                ?: aiServices.first()
+                        }
+                    },
+                    isSplitScreenActive = isSplitScreenMode
                 )
             },
             snackbarHost = {
@@ -568,205 +692,147 @@ fun AiHubApp(
                     .padding(innerPadding)
                     .background(MaterialTheme.colorScheme.background)
             ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    AndroidView(
-                        factory = { ctx ->
-                            FrameLayout(ctx).apply {
-                                webViews.values.forEach { wv ->
-                                    if (wv.parent == null) {
-                                        addView(wv)
-                                        wv.visibility = View.GONE
-                                    }
+                if (!isSplitScreenMode) {
+                    // Normal Single Pane View
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AndroidView(
+                            factory = { ctx ->
+                                FrameLayout(ctx).apply {
+                                    val currentWv = getOrCreateWebView(selectedService)
+                                    (currentWv.parent as? ViewGroup)?.removeView(currentWv)
+                                    addView(currentWv)
+                                    currentWv.visibility = View.VISIBLE
+                                    currentWv.bringToFront()
                                 }
-
-                                val currentService = selectedService
-                                val currentWebView = webViews[currentService.name]
-                                if (currentWebView == null) {
-                                    val newWebView = createWebViewForService(
-                                        context = this.context,
-                                        service = currentService,
-                                        activity = context,
-                                        settings = settings,
-                                        onProgressUpdate = { progress ->
-                                            updateServiceState(currentService.name) { state ->
-                                                state.copy(progress = progress)
-                                            }
-                                        },
-                                        onLoadingStateChange = { isLoading ->
-                                            updateServiceState(currentService.name) { state ->
-                                                state.copy(
-                                                    isLoading = isLoading,
-                                                    webViewState = if (isLoading) WebViewState.LOADING else WebViewState.SUCCESS,
-                                                    progress = if (isLoading) 0 else state.progress
-                                                )
-                                            }
-
-                                            if (isLoading) {
-                                                updateServiceState(currentService.name) { state ->
-                                                    state.copy(error = null)
-                                                }
-                                            }
-                                        },
-                                        onLinkLongPress = { url, title, type ->
-                                            selectedLink = LinkData(url, title, type)
-                                            showLinkDialog = true
-                                        },
-                                        onError = { errorCode, description ->
-                                            updateServiceState(currentService.name) { state ->
-                                                state.copy(
-                                                    error = errorCode to description,
-                                                    webViewState = WebViewState.ERROR,
-                                                    isLoading = false
-                                                )
-                                            }
-                                            webViews[currentService.name]?.visibility = View.GONE
-                                        },
-                                        onJsAlertRequest = { message, result ->
-                                            message?.let {
-                                                jsDialog = JsDialog.Alert(it, result!!)
-                                            }
-                                        },
-                                        onJsConfirmRequest = { message, result ->
-                                            message?.let {
-                                                jsDialog = JsDialog.Confirm(it, result!!)
-                                            }
-                                        },
-                                        onJsPromptRequest = { message, result ->
-                                            message?.let {
-                                                jsDialog = JsDialog.Prompt(it, result!!)
-                                            }
-                                        },
-                                        onJsBeforeUnloadRequest = { message, result ->
-                                            message?.let {
-                                                jsDialog = JsDialog.BeforeUnload(it, result!!)
-                                            }
-                                        },
-                                    )
-
-                                    updateWebViewSettings(newWebView, settings, false)
-                                    webViews[currentService.name] = newWebView
-                                    addView(newWebView)
-                                    newWebView.visibility = View.VISIBLE
-                                    newWebView.bringToFront()
-                                } else {
-                                    if (currentWebView.parent == null) {
-                                        addView(currentWebView)
-                                    }
-                                    currentWebView.bringToFront()
-
-                                    val shouldBeVisible =
-                                        serviceStates[currentService.name]?.error == null
-                                    currentWebView.visibility =
-                                        if (shouldBeVisible) View.VISIBLE else View.GONE
-                                }
-                            }
-                        },
-                        update = { root ->
-                            val currentService = selectedService
-                            if (webViews[currentService.name] == null) {
-                                val newWebView = createWebViewForService(
-                                    context = root.context,
-                                    service = currentService,
-                                    activity = context,
-                                    settings = settings,
-                                    onProgressUpdate = { progress ->
-                                        updateServiceState(currentService.name) { state ->
-                                            state.copy(progress = progress)
-                                        }
-                                    },
-                                    onLoadingStateChange = { isLoading ->
-                                        updateServiceState(currentService.name) { state ->
-                                            state.copy(
-                                                isLoading = isLoading,
-                                                webViewState = if (isLoading) WebViewState.LOADING else WebViewState.SUCCESS
-                                            )
-                                        }
-
-                                        if (isLoading) {
-                                            updateServiceState(currentService.name) { state ->
-                                                state.copy(error = null)
-                                            }
-                                        }
-                                    },
-                                    onLinkLongPress = { url, title, type ->
-                                        selectedLink = LinkData(url, title, type)
-                                        showLinkDialog = true
-                                    },
-                                    onError = { errorCode, description ->
-                                        updateServiceState(currentService.name) { state ->
-                                            state.copy(
-                                                error = errorCode to description,
-                                                webViewState = WebViewState.ERROR,
-                                                isLoading = false
-                                            )
-                                        }
-                                        webViews[currentService.name]?.visibility = View.GONE
-                                    },
-                                    onJsAlertRequest = { message, result ->
-                                        message?.let {
-                                            jsDialog = JsDialog.Alert(it, result!!)
-                                        }
-                                    },
-                                    onJsConfirmRequest = { message, result ->
-                                        message?.let {
-                                            jsDialog = JsDialog.Confirm(it, result!!)
-                                        }
-                                    },
-                                    onJsPromptRequest = { message, result ->
-                                        message?.let {
-                                            jsDialog = JsDialog.Prompt(it, result!!)
-                                        }
-                                    },
-                                    onJsBeforeUnloadRequest = { message, result ->
-                                        message?.let {
-                                            jsDialog = JsDialog.BeforeUnload(it, result!!)
-                                        }
-                                    },
-                                )
-
-                                updateWebViewSettings(newWebView, settings, false)
-                                webViews[currentService.name] = newWebView
-                                root.addView(newWebView)
-                                newWebView.visibility = View.VISIBLE
-                                newWebView.bringToFront()
-                            } else {
-                                val currentWebView = webViews[currentService.name]!!
-                                if (currentWebView.parent == null) {
-                                    root.addView(currentWebView)
-                                }
-
-                                val shouldBeVisible =
-                                    serviceStates[currentService.name]?.error == null
-                                currentWebView.visibility =
-                                    if (shouldBeVisible) View.VISIBLE else View.GONE
-                                currentWebView.bringToFront()
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-
-                    if (hasCurrentError && currentState.error != null) {
-                        val (errorCode, errorMessage) = currentState.error!!
-                        ErrorOverlay(
-                            errorType = ErrorType.fromErrorCode(errorCode),
-                            errorCode = errorCode,
-                            errorMessage = errorMessage,
-                            serviceName = selectedService.name,
-                            accentColor = selectedService.accentColor,
-                            onRetry = {
-                                updateServiceState(selectedService.name) { state ->
-                                    state.copy(
-                                        error = null,
-                                        webViewState = WebViewState.LOADING,
-                                        isLoading = true,
-                                        progress = 0
-                                    )
-                                }
-                                webViews[selectedService.name]?.reload()
                             },
-                            modifier = Modifier.fillMaxSize()
+                            update = { root ->
+                                val currentWv = getOrCreateWebView(selectedService)
+                                if (currentWv.parent != root) {
+                                    (currentWv.parent as? ViewGroup)?.removeView(currentWv)
+                                    root.addView(currentWv)
+                                }
+                                val shouldBeVisible = serviceStates[selectedService.name]?.error == null
+                                currentWv.visibility = if (shouldBeVisible) View.VISIBLE else View.GONE
+                                currentWv.bringToFront()
+                            },
+                            modifier = Modifier.fillMaxSize(),
                         )
+
+                        if (hasCurrentError && currentState.error != null) {
+                            val (errorCode, errorMessage) = currentState.error!!
+                            ErrorOverlay(
+                                errorType = ErrorType.fromErrorCode(errorCode),
+                                errorCode = errorCode,
+                                errorMessage = errorMessage,
+                                serviceName = selectedService.name,
+                                accentColor = selectedService.accentColor,
+                                onRetry = {
+                                    updateServiceState(selectedService.name) { state ->
+                                        state.copy(
+                                            error = null,
+                                            webViewState = WebViewState.LOADING,
+                                            isLoading = true,
+                                            progress = 0
+                                        )
+                                    }
+                                    webViews[selectedService.name]?.reload()
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
+                } else {
+                    // Dual Split-Screen Compare Mode View
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Top Primary Pane
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                        ) {
+                            AndroidView(
+                                factory = { ctx ->
+                                    FrameLayout(ctx).apply {
+                                        val primaryWv = getOrCreateWebView(selectedService)
+                                        (primaryWv.parent as? ViewGroup)?.removeView(primaryWv)
+                                        addView(primaryWv)
+                                        primaryWv.visibility = View.VISIBLE
+                                    }
+                                },
+                                update = { root ->
+                                    val primaryWv = getOrCreateWebView(selectedService)
+                                    if (primaryWv.parent != root) {
+                                        (primaryWv.parent as? ViewGroup)?.removeView(primaryWv)
+                                        root.addView(primaryWv)
+                                    }
+                                    primaryWv.visibility = View.VISIBLE
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+
+                        // Split Divider with Model Switcher
+                        SplitCompareDivider(
+                            primaryName = selectedService.name,
+                            secondaryService = secondaryService,
+                            availableServices = aiServices,
+                            onSecondarySelected = { secondaryService = it },
+                            onClose = { isSplitScreenMode = false }
+                        )
+
+                        // Bottom Secondary Pane
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                        ) {
+                            AndroidView(
+                                factory = { ctx ->
+                                    FrameLayout(ctx).apply {
+                                        val secWv = getOrCreateWebView(secondaryService)
+                                        (secWv.parent as? ViewGroup)?.removeView(secWv)
+                                        addView(secWv)
+                                        secWv.visibility = View.VISIBLE
+                                    }
+                                },
+                                update = { root ->
+                                    val secWv = getOrCreateWebView(secondaryService)
+                                    if (secWv.parent != root) {
+                                        (secWv.parent as? ViewGroup)?.removeView(secWv)
+                                        root.addView(secWv)
+                                    }
+                                    secWv.visibility = View.VISIBLE
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                }
+
+                // Feature 4: Broadcast Bar overlay
+                if (showBroadcastBar) {
+                    BroadcastBar(
+                        targetServiceNames = webViews.keys.toList().ifEmpty { listOf(selectedService.name) },
+                        onBroadcast = { promptText ->
+                            val count = webViews.size.coerceAtLeast(1)
+                            webViews.values.forEach { wv ->
+                                wv.evaluateJavascript(
+                                    buildPromptInjectionJs(promptText, autoSubmit = true),
+                                    null
+                                )
+                            }
+                            Toast.makeText(
+                                context,
+                                "Broadcasted prompt to $count AI tab(s)!",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            showBroadcastBar = false
+                        },
+                        onClose = { showBroadcastBar = false },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                    )
                 }
             }
         }
@@ -776,6 +842,14 @@ fun AiHubApp(
         when {
             drawerState.isOpen -> {
                 scope.launch { drawerState.close() }
+            }
+
+            showBroadcastBar -> {
+                showBroadcastBar = false
+            }
+
+            isSplitScreenMode -> {
+                isSplitScreenMode = false
             }
 
             hasCurrentError -> {
@@ -1078,11 +1152,45 @@ fun AiHubApp(
         )
     }
 
+    if (showPromptVault) {
+        PromptVaultSheet(
+            sheetState = promptVaultSheetState,
+            settingsManager = settingsManager,
+            onDismiss = { showPromptVault = false },
+            onInjectPrompt = { promptText, autoSubmit ->
+                val targets = mutableListOf<WebView>()
+                webViews[selectedService.name]?.let { targets.add(it) }
+                if (isSplitScreenMode) {
+                    webViews[secondaryService.name]?.let { targets.add(it) }
+                }
+                targets.forEach { wv ->
+                    wv.evaluateJavascript(
+                        buildPromptInjectionJs(promptText, autoSubmit = autoSubmit),
+                        null
+                    )
+                }
+                val actionName = if (autoSubmit) "injected & sent" else "injected"
+                Toast.makeText(
+                    context,
+                    "Prompt $actionName into ${selectedService.name}" + if (isSplitScreenMode) " & ${secondaryService.name}" else "",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        )
+    }
+
     if (showRequestNewAiScreen) {
         BackHandler { showRequestNewAiScreen = false }
         RequestNewAiScreen(
             onBack = { showRequestNewAiScreen = false },
             allServices = aiServices,
+            settingsManager = settingsManager,
+            onCustomServicesChanged = {
+                scope.launch {
+                    val updated = loadServices(context)
+                    onServicesUpdated(updated)
+                }
+            },
             onSubmit = { content, method ->
                 val title = Uri.encode("Request for new AI").replace("+", "%20")
                 val body = Uri.encode(content).replace("+", "%20")
@@ -1097,5 +1205,93 @@ fun AiHubApp(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun SplitCompareDivider(
+    primaryName: String,
+    secondaryService: AiService,
+    availableServices: List<AiService>,
+    onSecondarySelected: (AiService) -> Unit,
+    onClose: () -> Unit
+) {
+    var dropdownExpanded by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 4.dp,
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.VerticalSplit,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "$primaryName vs",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Box {
+                    AssistChip(
+                        onClick = { dropdownExpanded = true },
+                        label = {
+                            Text(
+                                secondaryService.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Rounded.ArrowDropDown,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    )
+                    DropdownMenu(
+                        expanded = dropdownExpanded,
+                        onDismissRequest = { dropdownExpanded = false }
+                    ) {
+                        availableServices.forEach { service ->
+                            DropdownMenuItem(
+                                text = { Text(service.name) },
+                                onClick = {
+                                    onSecondarySelected(service)
+                                    dropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.Close,
+                    contentDescription = "Exit Split Screen",
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
     }
 }
