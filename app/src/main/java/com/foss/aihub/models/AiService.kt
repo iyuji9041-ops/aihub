@@ -90,5 +90,5 @@ suspend fun loadServices(context: Context): List<AiService> = withContext(Dispat
         emptyList()
     }
 
-    baseServices + customServices
+    (baseServices + customServices).distinctBy { it.name.trim().lowercase() }
 }

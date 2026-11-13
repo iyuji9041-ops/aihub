@@ -99,7 +99,7 @@ fun ManageAiServicesScreen(
     onRequestNewAi: () -> Unit
 ) {
     val settings by settingsManager.settingsFlow.collectAsState()
-    val baseServices = remember(aiServices) { aiServices }
+    val baseServices = remember(aiServices) { aiServices.distinctBy { it.name.trim().lowercase() } }
 
     val orderedServices = remember(settings.serviceOrder, baseServices) {
         if (settings.serviceOrder.isEmpty()) {
@@ -304,7 +304,7 @@ fun ManageAiServicesScreen(
                 }
             } else {
                 itemsIndexed(
-                    items = displayList, key = { _, service -> service.name }) { _, service ->
+                    items = displayList.distinctBy { it.name }, key = { index, service -> "${service.name}_$index" }) { _, service ->
                     val isEnabled = service.name in enabledServices
                     val isDefault = service.name == defaultServiceId
                     val isOnlyEnabled = enabledServices.size == 1 && isEnabled

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -80,7 +81,7 @@ fun BentoHomeScreen(
 
     val filteredServices = remember(aiServices, enabledServices, favoriteServices, searchQuery) {
         val query = searchQuery.trim().lowercase()
-        val enabledList = aiServices.filter { it.name in enabledServices }
+        val enabledList = aiServices.distinctBy { it.name.trim().lowercase() }.filter { it.name in enabledServices }
         val matching = if (query.isEmpty()) {
             enabledList
         } else {
@@ -280,7 +281,7 @@ fun BentoHomeScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(filteredServices, key = { it.name }) { service ->
+            itemsIndexed(filteredServices.distinctBy { it.name }, key = { index, service -> "${service.category}_${service.name}_$index" }) { _, service ->
                 val isLoaded = service.name in loadedServiceNames
                 val isFrozen = service.name in frozenServices
                 val isFavorite = service.name in favoriteServices

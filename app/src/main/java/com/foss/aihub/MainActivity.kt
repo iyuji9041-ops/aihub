@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
 import android.widget.Toast
@@ -137,6 +138,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         enableEdgeToEdge()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+        enableHighRefreshRate()
         super.onCreate(savedInstanceState)
         handleIntentText(intent)
 
@@ -275,5 +281,39 @@ class MainActivity : ComponentActivity() {
         }
         callback.onReceiveValue(uris)
         this.filePathCallback = null
+    }
+
+    private fun enableHighRefreshRate() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                val currentDisplay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    display
+                } else {
+                    @Suppress("DEPRECATION")
+                    windowManager.defaultDisplay
+                }
+                val modes = currentDisplay?.supportedModes ?: return
+                val highestRefreshRateMode = modes.maxByOrNull { it.refreshRate }
+                if (highestRefreshRateMode != null && highestRefreshRateMode.refreshRate >= 80f) {
+                    val lp = window.attributes
+                    lp.preferredDisplayModeId = highestRefreshRateMode.modeId
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        lp.preferredRefreshRate = highestRefreshRateMode.refreshRate
+                    }
+                    window.attributes = lp
+                }
+            } catch (_: Exception) {
+                // Ignore if display modes unsupported
+            }
+        }
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_RUNNING_LOW || level == TRIM_MEMORY_UI_HIDDEN) {
+            try {
+                android.webkit.CookieManager.getInstance().flush()
+            } catch (_: Exception) {}
+        }
     }
 }

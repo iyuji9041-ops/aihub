@@ -236,7 +236,8 @@ class SettingsManager(context: Context) {
         val json = sharedPref.getString(KEY_SERVICE_ORDER, null)
         return if (!json.isNullOrEmpty()) {
             val type = object : TypeToken<List<String>>() {}.type
-            gson.fromJson(json, type)
+            val list: List<String>? = gson.fromJson(json, type)
+            list?.distinct() ?: emptyList()
         } else {
             emptyList()
         }
@@ -251,7 +252,7 @@ class SettingsManager(context: Context) {
     }
 
     fun saveServiceOrder(order: List<String>) {
-        val json = gson.toJson(order)
+        val json = gson.toJson(order.distinct())
         sharedPref.edit { putString(KEY_SERVICE_ORDER, json) }
     }
 
@@ -321,34 +322,23 @@ class SettingsManager(context: Context) {
     // --- Custom AI Services (Feature 2) ---
     fun loadCustomServices(): List<CustomAiService> {
         val json = sharedPref.getString(KEY_CUSTOM_AI_SERVICES, null)
-        val services: MutableList<CustomAiService> = if (!json.isNullOrEmpty()) {
+        val services: List<CustomAiService> = if (!json.isNullOrEmpty()) {
             try {
                 val type = object : TypeToken<List<CustomAiService>>() {}.type
-                gson.fromJson<List<CustomAiService>>(json, type)?.toMutableList() ?: mutableListOf()
+                gson.fromJson<List<CustomAiService>>(json, type) ?: emptyList()
             } catch (e: Exception) {
                 Log.e("SettingsManager", "Error loading custom AI services", e)
-                mutableListOf()
+                emptyList()
             }
         } else {
-            mutableListOf()
+            emptyList()
         }
 
-        // Pre-seed ElevenLabs if not present
-        if (services.none { it.name.equals("ElevenLabs", ignoreCase = true) }) {
-            val elevenLabs = CustomAiService(
-                name = "ElevenLabs",
-                url = "https://elevenlabs.io/app/speech-synthesis/text-to-speech",
-                category = "Audio"
-            )
-            services.add(elevenLabs)
-            saveCustomServices(services)
-        }
-
-        return services
+        return services.distinctBy { it.name.trim().lowercase() }
     }
 
     fun saveCustomServices(services: List<CustomAiService>) {
-        val json = gson.toJson(services)
+        val json = gson.toJson(services.distinctBy { it.name.trim().lowercase() })
         sharedPref.edit { putString(KEY_CUSTOM_AI_SERVICES, json) }
     }
 

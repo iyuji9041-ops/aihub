@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -147,7 +148,8 @@ fun DrawerContent(
     }
 
     val orderedEnabledServices = remember(aiServices, enabledServices, serviceOrder) {
-        val enabledList = aiServices.filter { it.name in enabledServices }
+        val uniqueServices = aiServices.distinctBy { it.name.trim().lowercase() }
+        val enabledList = uniqueServices.filter { it.name in enabledServices }
         val orderMap = serviceOrder.withIndex().associate { it.value to it.index }
         enabledList.sortedBy { service ->
             orderMap[service.name] ?: Int.MAX_VALUE
@@ -380,7 +382,7 @@ fun DrawerContent(
                         NoResultsView(onReset = { clearFilters() })
                     }
                 } else if (showFavoritesOnly) {
-                    items(favoriteFiltered, key = { it.name }) { service ->
+                    itemsIndexed(favoriteFiltered.distinctBy { it.name }, key = { index, service -> "fav_only_${service.name}_$index" }) { _, service ->
                         ServiceCard(
                             service = service,
                             isSelected = selectedService.name == service.name,
@@ -419,7 +421,7 @@ fun DrawerContent(
                                 )
                             }
                         }
-                        items(favoriteFiltered, key = { "fav_${it.name}" }) { service ->
+                        itemsIndexed(favoriteFiltered.distinctBy { it.name }, key = { index, service -> "fav_${service.name}_$index" }) { _, service ->
                             ServiceCard(
                                 service = service,
                                 isSelected = selectedService.name == service.name,
@@ -451,7 +453,7 @@ fun DrawerContent(
                                 )
                             }
                         }
-                        items(nonFavoriteFiltered, key = { it.name }) { service ->
+                        itemsIndexed(nonFavoriteFiltered.distinctBy { it.name }, key = { index, service -> "all_${service.name}_$index" }) { _, service ->
                             ServiceCard(
                                 service = service,
                                 isSelected = selectedService.name == service.name,

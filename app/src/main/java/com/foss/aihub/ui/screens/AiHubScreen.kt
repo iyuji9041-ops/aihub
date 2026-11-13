@@ -198,8 +198,9 @@ fun AiHubApp(
 
     val enabledServiceList = remember(settings.enabledServices, aiServices) {
         val enabledSet = settings.enabledServices
+        val uniqueServices = aiServices.distinctBy { it.name.trim().lowercase() }
         val orderMap = settings.serviceOrder.withIndex().associate { it.value to it.index }
-        aiServices.filter { it.name in enabledSet }.sortedBy { orderMap[it.name] ?: Int.MAX_VALUE }
+        uniqueServices.filter { it.name in enabledSet }.sortedBy { orderMap[it.name] ?: Int.MAX_VALUE }
     }
 
     fun cycleService(forward: Boolean) {

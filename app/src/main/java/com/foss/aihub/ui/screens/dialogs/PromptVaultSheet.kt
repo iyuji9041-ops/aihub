@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -151,7 +152,7 @@ fun PromptVaultSheet(
                         .heightIn(max = 420.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(promptsList, key = { it.id }) { prompt ->
+                    itemsIndexed(promptsList.distinctBy { it.id }, key = { index, prompt -> "${prompt.id}_$index" }) { _, prompt ->
                         PromptCard(
                             prompt = prompt,
                             onInject = {

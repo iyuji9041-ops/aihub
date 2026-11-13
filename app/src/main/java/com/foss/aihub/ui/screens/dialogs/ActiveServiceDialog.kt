@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -266,7 +267,7 @@ fun ActiveServicesDialog(
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(activeServices, key = { it.name }) { service ->
+                        itemsIndexed(activeServices.distinctBy { it.name }, key = { index, service -> "${service.name}_$index" }) { _, service ->
                             val isSelected = service.name == selectedServiceId
                             val isFrozen = service.name in frozenServices
                             ActiveServiceDialogItem(
