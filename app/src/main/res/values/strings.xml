@@ -295,6 +295,8 @@
     <string name="setting_auto_enable_services_description">Automatically enable new AI services that match your filters when they become available.</string>
     <string name="setting_block_trackers_ads">Block trackers &amp; ads</string>
     <string name="setting_block_trackers_ads_description">Recommended for privacy</string>
+    <string name="setting_save_data_mobile">Save mobile data</string>
+    <string name="setting_save_data_mobile_description">Block video files while on mobile data</string>
     <string name="setting_custom_injection">Custom JS/CSS Injection</string>
     <string name="setting_custom_injection_description">Inject custom JavaScript/CSS into every service</string>
     <string name="setting_default_ai">Default AI Assistant</string>

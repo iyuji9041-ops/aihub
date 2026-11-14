@@ -169,6 +169,7 @@ fun SettingsScreen(
     var selectedFontSizePercent by remember { mutableIntStateOf(settings.fontSizePercentage) }
 
     var blockUnnecessaryConnections by remember { mutableStateOf(settings.blockAdsAndTrackers) }
+    var saveDataOnMobile by remember { mutableStateOf(settings.saveDataOnMobile) }
     var proxyOption by remember { mutableStateOf(if (settings.isProxy) settings.proxyType else "none") }
     var proxyHost by remember { mutableStateOf(settings.proxyHost) }
     var proxyPort by remember { mutableStateOf(settings.proxyPort) }
@@ -220,6 +221,7 @@ fun SettingsScreen(
                         it.thirdPartyCookies = restored.thirdPartyCookies
                         it.fontSizePercentage = restored.fontSizePercentage
                         it.blockAdsAndTrackers = restored.blockAdsAndTrackers
+                        it.saveDataOnMobile = restored.saveDataOnMobile
                         it.checkForUpdate = restored.checkForUpdate
                         it.isProxy = restored.isProxy
                         it.proxyType = restored.proxyType
@@ -252,6 +254,7 @@ fun SettingsScreen(
                     thirdPartyCookies = restored.thirdPartyCookies
                     selectedFontSizePercent = restored.fontSizePercentage
                     blockUnnecessaryConnections = restored.blockAdsAndTrackers
+                    saveDataOnMobile = restored.saveDataOnMobile
                     proxyOption = if (restored.isProxy) restored.proxyType else "none"
                     proxyHost = restored.proxyHost
                     proxyPort = restored.proxyPort
@@ -1027,6 +1030,27 @@ fun SettingsScreen(
                                     blockUnnecessaryConnections = it
                                     settingsManager.updateSettings { settings ->
                                         settings.blockAdsAndTrackers = it
+                                    }
+                                }, colors = defaultSwitchTheme
+                            )
+                        }
+
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
+                        SettingItem(
+                            title = stringResource(R.string.setting_save_data_mobile),
+                            description = stringResource(R.string.setting_save_data_mobile_description),
+                            icon = Icons.Outlined.Wifi,
+                            iconColor = MaterialTheme.colorScheme.primary
+                        ) {
+                            Switch(
+                                checked = saveDataOnMobile, onCheckedChange = {
+                                    saveDataOnMobile = it
+                                    settingsManager.updateSettings { settings ->
+                                        settings.saveDataOnMobile = it
                                     }
                                 }, colors = defaultSwitchTheme
                             )

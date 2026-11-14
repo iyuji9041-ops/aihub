@@ -167,7 +167,7 @@ fun FrostedFreezeBanner(
                 }
 
                 Text(
-                    text = "❄️ $serviceName is Deep-Frozen (0% CPU • 0 Data Usage)",
+                    text = "❄️ $serviceName is Deep-Frozen (0% CPU • Network paused)",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -175,7 +175,7 @@ fun FrostedFreezeBanner(
                 )
 
                 Text(
-                    text = "JavaScript execution, background media, and network timers are stopped to save battery & mobile data.",
+                    text = "JavaScript execution, background media, and network loads are paused to save battery & mobile data.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -326,17 +326,30 @@ fun AiHubApp(
         }
     }
 
+    fun deepFreezeWebView(wv: WebView) {
+        wv.evaluateJavascript(
+            "(function(){try{window.stop();document.querySelectorAll('video,audio').forEach(function(m){m.pause();});}catch(e){}})();",
+            null
+        )
+        wv.stopLoading()
+        wv.settings.blockNetworkLoads = true
+        wv.onPause()
+    }
+
+    fun deepWakeWebView(wv: WebView) {
+        wv.settings.blockNetworkLoads = false
+        wv.onResume()
+        wv.resumeTimers()
+    }
+
     fun freezeServiceNow(serviceName: String) {
         if (serviceName.isBlank()) return
         pauseJobs.remove(serviceName)?.cancel()
         webViews[serviceName]?.let { wv ->
-            wv.evaluateJavascript("window.stop(); document.querySelectorAll('video, audio').forEach(m => m.pause());", null)
-            wv.stopLoading()
-            wv.onPause()
-            wv.pauseTimers()
+            deepFreezeWebView(wv)
         }
         frozenServices.add(serviceName)
-        Toast.makeText(context, "❄️ $serviceName Frozen (0% CPU & 0 Data)", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "❄️ $serviceName Frozen (0% CPU • Network paused)", Toast.LENGTH_SHORT).show()
     }
 
     fun freezeAllBackgroundServices() {
@@ -344,16 +357,13 @@ fun AiHubApp(
         webViews.forEach { (name, wv) ->
             if (name != selectedService.name && (!isSplitScreenMode || name != secondaryService.name)) {
                 pauseJobs.remove(name)?.cancel()
-                wv.evaluateJavascript("window.stop(); document.querySelectorAll('video, audio').forEach(m => m.pause());", null)
-                wv.stopLoading()
-                wv.onPause()
-                wv.pauseTimers()
+                deepFreezeWebView(wv)
                 frozenServices.add(name)
                 count++
             }
         }
         if (count > 0) {
-            Toast.makeText(context, "❄️ Frozen $count background tab(s) (0% CPU)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "❄️ Frozen $count background tab(s) (0% CPU • Network paused)", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -361,8 +371,7 @@ fun AiHubApp(
         if (serviceName.isBlank()) return
         pauseJobs.remove(serviceName)?.cancel()
         webViews[serviceName]?.let { wv ->
-            wv.onResume()
-            wv.resumeTimers()
+            deepWakeWebView(wv)
         }
         frozenServices.remove(serviceName)
         Toast.makeText(context, "⚡ Woke $serviceName", Toast.LENGTH_SHORT).show()
@@ -371,8 +380,7 @@ fun AiHubApp(
     fun resumeService(serviceName: String) {
         pauseJobs.remove(serviceName)?.cancel()
         webViews[serviceName]?.let { wv ->
-            wv.onResume()
-            wv.resumeTimers()
+            deepWakeWebView(wv)
         }
         frozenServices.remove(serviceName)
     }
@@ -382,7 +390,9 @@ fun AiHubApp(
         pauseJobs[serviceName]?.cancel()
         pauseJobs[serviceName] = scope.launch {
             delay(20_000L) // 20-second grace period before freezing RAM/timers
-            webViews[serviceName]?.onPause()
+            webViews[serviceName]?.let { wv ->
+                deepFreezeWebView(wv)
+            }
             frozenServices.add(serviceName)
         }
     }
@@ -527,13 +537,13 @@ fun AiHubApp(
                 Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
                     webViews.values.forEach { it.onPause() }
                     try {
-                        WebView(context).pauseTimers()
+                        webViews.values.firstOrNull()?.pauseTimers()
                     } catch (_: Exception) {}
                 }
 
                 Lifecycle.Event.ON_RESUME -> {
                     try {
-                        WebView(context).resumeTimers()
+                        webViews.values.firstOrNull()?.resumeTimers()
                     } catch (_: Exception) {}
                     resumeService(selectedService.name)
                     if (isSplitScreenMode) {

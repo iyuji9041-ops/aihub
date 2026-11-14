@@ -63,6 +63,7 @@ class SettingsManager(context: Context) {
         private const val KEY_MAX_KEEP_ALIVE = "maxKeepAlive"
         private const val KEY_UPDATE_FREQUENCY_DAYS = "updateFrequencyDays"
         private const val KEY_BLOCK_ADS_TRACKERS = "blockAdsAndTrackers"
+        private const val KEY_SAVE_DATA_ON_MOBILE = "saveDataOnMobile"
         private const val KEY_CHECK_FOR_UPDATE = "checkForUpdate"
         private const val KEY_LAST_UPDATE_CHECK_DATE = "lastUpdateCheck"
 
@@ -131,6 +132,7 @@ class SettingsManager(context: Context) {
         fontSizePercentage = sharedPref.getInt(KEY_FONT_SIZE_PERCENT, 100),
         updateFrequencyDays = sharedPref.getInt(KEY_UPDATE_FREQUENCY_DAYS, 3),
         blockAdsAndTrackers = sharedPref.getBoolean(KEY_BLOCK_ADS_TRACKERS, true),
+        saveDataOnMobile = sharedPref.getBoolean(KEY_SAVE_DATA_ON_MOBILE, true),
         checkForUpdate = sharedPref.getBoolean(KEY_CHECK_FOR_UPDATE, true),
         isProxy = sharedPref.getBoolean(KEY_IS_PROXY, false),
         proxyType = sharedPref.getString(KEY_PROXY_TYPE, "http") ?: "http",
@@ -174,6 +176,7 @@ class SettingsManager(context: Context) {
             putInt(KEY_FONT_SIZE_PERCENT, settings.fontSizePercentage)
             putInt(KEY_UPDATE_FREQUENCY_DAYS, settings.updateFrequencyDays)
             putBoolean(KEY_BLOCK_ADS_TRACKERS, settings.blockAdsAndTrackers)
+            putBoolean(KEY_SAVE_DATA_ON_MOBILE, settings.saveDataOnMobile)
             putBoolean(KEY_CHECK_FOR_UPDATE, settings.checkForUpdate)
             putBoolean(KEY_IS_PROXY, settings.isProxy)
             putString(KEY_PROXY_TYPE, settings.proxyType)

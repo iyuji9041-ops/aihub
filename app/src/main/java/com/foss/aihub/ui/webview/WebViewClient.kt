@@ -1,6 +1,8 @@
 package com.foss.aihub.ui.webview
 
+import android.content.Context
 import android.graphics.Bitmap
+import android.net.ConnectivityManager
 import android.net.Uri
 import android.util.Log
 import android.webkit.CookieManager
@@ -148,6 +150,33 @@ class CustomWebViewClient(
                 ByteArrayInputStream(ByteArray(0))
             )
         }
+
+        try {
+            if (request.isForMainFrame == false) {
+                val settings = context.settingsManager.settingsFlow.value
+                if (settings.saveDataOnMobile) {
+                    val connectivityManager =
+                        context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                    if (connectivityManager?.isActiveNetworkMetered == true) {
+                        val path = request.url?.path?.lowercase() ?: ""
+                        val blockedExtensions = listOf(".mp4", ".webm", ".mov", ".m3u8", ".mpd", ".m4s")
+                        if (blockedExtensions.any { path.endsWith(it) }) {
+                            return WebResourceResponse(
+                                "video/mp4",
+                                "UTF-8",
+                                204,
+                                "No Content",
+                                emptyMap(),
+                                ByteArrayInputStream(ByteArray(0))
+                            )
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            // Any error lets the request pass
+        }
+
         return null
     }
 
