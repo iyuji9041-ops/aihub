@@ -378,17 +378,24 @@ class SettingsManager(context: Context) {
 
     // --- Quick Prompt Vault (Feature 3) ---
     fun loadSavedPrompts(): List<PromptItem> {
-        val json = sharedPref.getString(KEY_SAVED_PROMPTS, null)
-        if (!json.isNullOrEmpty()) {
-            try {
-                val type = object : TypeToken<List<PromptItem>>() {}.type
-                val loaded: List<PromptItem>? = gson.fromJson(json, type)
-                if (!loaded.isNullOrEmpty()) return loaded
-            } catch (e: Exception) {
-                Log.e("SettingsManager", "Error loading prompts", e)
+        if (sharedPref.contains(KEY_SAVED_PROMPTS)) {
+            val json = sharedPref.getString(KEY_SAVED_PROMPTS, null)
+            if (!json.isNullOrEmpty()) {
+                try {
+                    val type = object : TypeToken<List<PromptItem>>() {}.type
+                    val loaded: List<PromptItem>? = gson.fromJson(json, type)
+                    if (loaded != null) {
+                        return loaded.map {
+                            if (it.id.isNullOrBlank()) it.copy(id = java.util.UUID.randomUUID().toString()) else it
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("SettingsManager", "Error loading prompts", e)
+                }
             }
+            return emptyList()
         }
-        // Default seeded prompts
+        // Default seeded prompts (only on first initial load)
         val defaultPrompts = listOf(
             PromptItem(
                 id = "default_debug",
@@ -432,6 +439,14 @@ class SettingsManager(context: Context) {
 
     fun deleteSavedPrompt(promptId: String) {
         val current = loadSavedPrompts().filterNot { it.id == promptId }
+        saveSavedPrompts(current)
+    }
+
+    fun deleteSavedPrompt(prompt: PromptItem) {
+        val current = loadSavedPrompts().filterNot {
+            (it.id.isNotBlank() && it.id == prompt.id) ||
+            (it.title == prompt.title && it.content == prompt.content)
+        }
         saveSavedPrompts(current)
     }
 }

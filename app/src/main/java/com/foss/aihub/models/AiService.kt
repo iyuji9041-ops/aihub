@@ -1,6 +1,7 @@
 package com.foss.aihub.models
 
 import android.content.Context
+import android.net.Uri
 import androidx.compose.ui.graphics.Color
 import com.foss.aihub.utils.generateAccentColorFromName
 import kotlinx.coroutines.Dispatchers
@@ -44,13 +45,13 @@ data class AiService(
     val accentColor: Color
 )
 
-
 suspend fun loadServices(context: Context): List<AiService> = withContext(Dispatchers.IO) {
+    val jsonParser = Json { ignoreUnknownKeys = true }
     val file = File(context.filesDir, "ais.json")
     val baseServices: List<AiService> = if (file.exists()) {
         try {
             val jsonString = file.readText()
-            val rawMap = Json.decodeFromString<Map<String, List<RawAiService>>>(jsonString)
+            val rawMap = jsonParser.decodeFromString<Map<String, List<RawAiService>>>(jsonString)
             rawMap.flatMap { (categoryName, rawServices) ->
                 rawServices.map { raw ->
                     val resolvedUrl = when {
@@ -77,6 +78,38 @@ suspend fun loadServices(context: Context): List<AiService> = withContext(Dispat
         emptyList()
     }
 
+    val extraServices: List<AiService> = try {
+        val extraJsonString = context.assets.open("extra_services.json").bufferedReader().use { it.readText() }
+        val rawExtraMap = jsonParser.decodeFromString<Map<String, List<RawAiService>>>(extraJsonString)
+        rawExtraMap.flatMap { (categoryName, rawServices) ->
+            rawServices.map { raw ->
+                AiService(
+                    name = raw.name,
+                    url = raw.website,
+                    category = categoryName,
+                    pricing = raw.pricing,
+                    privacy = raw.privacy,
+                    loginRequired = raw.login_required,
+                    bestFor = raw.best_for,
+                    accentColor = generateAccentColorFromName(raw.name)
+                )
+            }
+        }
+    } catch (_: Exception) {
+        emptyList()
+    }
+
+    val existingNames = baseServices.map { it.name.trim().lowercase() }.toSet()
+    val existingHosts = baseServices.mapNotNull {
+        try { Uri.parse(it.url).host?.lowercase() } catch (_: Exception) { null }
+    }.toSet()
+
+    val filteredExtraServices = extraServices.filter { extra ->
+        val extraName = extra.name.trim().lowercase()
+        val extraHost = try { Uri.parse(extra.url).host?.lowercase() } catch (_: Exception) { null }
+        !existingNames.contains(extraName) && (extraHost == null || !existingHosts.contains(extraHost))
+    }
+
     val customServices = try {
         val settingsManager = com.foss.aihub.utils.SettingsManager(context)
         settingsManager.loadCustomServices().map { custom ->
@@ -100,5 +133,5 @@ suspend fun loadServices(context: Context): List<AiService> = withContext(Dispat
         emptyList()
     }
 
-    (baseServices + customServices).distinctBy { it.name.trim().lowercase() }
+    (baseServices + filteredExtraServices + customServices).distinctBy { it.name.trim().lowercase() }
 }

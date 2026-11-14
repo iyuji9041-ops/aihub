@@ -616,8 +616,11 @@ fun AiHubApp(
         }
     }
 
+    var initialTabsCreated by remember { mutableStateOf(false) }
+
     LaunchedEffect(initialServiceNames, showHomeDashboard) {
-        if (!showHomeDashboard) {
+        if (!showHomeDashboard && !initialTabsCreated) {
+            initialTabsCreated = true
             initialServiceNames.forEach { serviceName ->
                 val service = aiServices.find { it.name == serviceName } ?: return@forEach
                 getOrCreateWebView(service)
@@ -792,7 +795,11 @@ fun AiHubApp(
                             if (drawerState.isClosed) drawerState.open() else drawerState.close()
                         }
                     },
-                    onHomeClick = { showHomeDashboard = !showHomeDashboard },
+                    onHomeClick = {
+                        if (!showHomeDashboard || webViews.containsKey(selectedService.name)) {
+                            showHomeDashboard = !showHomeDashboard
+                        }
+                    },
                     isHomeActive = showHomeDashboard,
                     onFreezeBackgroundTabs = {
                         if (selectedService.name in frozenServices) {
@@ -844,7 +851,9 @@ fun AiHubApp(
                     },
                     onKillService = { service ->
                         val serviceId = service.name
-                        if (serviceId == selectedService.name) return@AiHubAppBar
+                        if (serviceId == selectedService.name) {
+                            showHomeDashboard = true
+                        }
 
                         webViews[serviceId]?.let { webView ->
                             (webView.parent as? ViewGroup)?.removeView(webView)
@@ -1184,7 +1193,19 @@ fun AiHubApp(
             }
 
             showHomeDashboard -> {
-                showHomeDashboard = false
+                if (webViews.containsKey(selectedService.name)) {
+                    showHomeDashboard = false
+                } else {
+                    val currentTime = System.currentTimeMillis()
+                    if (currentTime - backPressedTime < 2000L) {
+                        context.finish()
+                    } else {
+                        backPressedTime = currentTime
+                        Toast.makeText(
+                            context, context.getString(R.string.msg_press_again), Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
             }
 
             isSplitScreenMode -> {

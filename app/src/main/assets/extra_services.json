@@ -1,0 +1,438 @@
+{
+  "social media": [
+    {
+      "name": "Instagram",
+      "website": "https://www.instagram.com",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Photo & Video Sharing", "Reels", "Stories"]
+    },
+    {
+      "name": "Facebook",
+      "website": "https://m.facebook.com",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Social Networking", "Groups", "Feed"]
+    },
+    {
+      "name": "X",
+      "website": "https://x.com",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Real-time News", "Microblogging", "Community"]
+    },
+    {
+      "name": "Reddit",
+      "website": "https://www.reddit.com",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Discussion Forums", "Communities", "Trending Topics"]
+    },
+    {
+      "name": "TikTok",
+      "website": "https://www.tiktok.com",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Short-form Video", "Trends", "Entertainment"]
+    },
+    {
+      "name": "Threads",
+      "website": "https://www.threads.net",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Conversations", "Microblogging", "Community"]
+    },
+    {
+      "name": "Snapchat",
+      "website": "https://web.snapchat.com",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Messaging", "Snaps", "Stories"]
+    },
+    {
+      "name": "LinkedIn",
+      "website": "https://www.linkedin.com",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Professional Networking", "Jobs", "Industry Insights"]
+    },
+    {
+      "name": "Pinterest",
+      "website": "https://www.pinterest.com",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Visual Inspiration", "Moodboards", "Design Ideas"]
+    },
+    {
+      "name": "Telegram",
+      "website": "https://web.telegram.org",
+      "pricing": "Freemium",
+      "privacy": "Encrypted",
+      "login_required": true,
+      "best_for": ["Secure Messaging", "Channels", "Cloud Storage"]
+    },
+    {
+      "name": "WhatsApp Web",
+      "website": "https://web.whatsapp.com",
+      "pricing": "Free",
+      "privacy": "End-to-End Encrypted",
+      "login_required": true,
+      "best_for": ["Chat", "Calls", "Daily Messaging"]
+    },
+    {
+      "name": "Discord",
+      "website": "https://discord.com/app",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Voice & Text Chat", "Gaming Communities", "Servers"]
+    },
+    {
+      "name": "YouTube",
+      "website": "https://m.youtube.com",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Video Streaming", "Tutorials", "Entertainment"]
+    },
+    {
+      "name": "Bluesky",
+      "website": "https://bsky.app",
+      "pricing": "Free",
+      "privacy": "Decentralized",
+      "login_required": true,
+      "best_for": ["Decentralized Social", "AT Protocol", "Microblogging"]
+    },
+    {
+      "name": "Mastodon",
+      "website": "https://mastodon.social",
+      "pricing": "Free",
+      "privacy": "Open Source",
+      "login_required": true,
+      "best_for": ["Fediverse", "Decentralized Social", "Privacy"]
+    },
+    {
+      "name": "Tumblr",
+      "website": "https://www.tumblr.com",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Blogging", "Fandoms", "Art & Media"]
+    },
+    {
+      "name": "Quora",
+      "website": "https://www.quora.com",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Q&A", "Knowledge Sharing", "Discussions"]
+    },
+    {
+      "name": "Twitch",
+      "website": "https://m.twitch.tv",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Live Streaming", "Gaming", "Creator Broadcasts"]
+    },
+    {
+      "name": "Medium",
+      "website": "https://medium.com",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Long-form Articles", "Tech Blogs", "Thought Leadership"]
+    }
+  ],
+  "chatbot": [
+    {
+      "name": "Qwen Chat",
+      "website": "https://chat.qwen.ai",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": false,
+      "best_for": ["Multilingual", "Reasoning", "Open Models"]
+    },
+    {
+      "name": "Kimi",
+      "website": "https://www.kimi.com",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": false,
+      "best_for": ["Long Document Analysis", "Research", "Summarization"]
+    },
+    {
+      "name": "Le Chat",
+      "website": "https://chat.mistral.ai",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Mistral Large", "Coding", "Multilingual"]
+    },
+    {
+      "name": "Meta AI",
+      "website": "https://www.meta.ai",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Llama 3.3", "Image Generation", "General Assistant"]
+    },
+    {
+      "name": "Copilot",
+      "website": "https://copilot.microsoft.com",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": false,
+      "best_for": ["Microsoft 365", "Web Search", "GPT-4o"]
+    },
+    {
+      "name": "Poe",
+      "website": "https://poe.com",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Multi-bot Access", "Custom Bots", "Fast Switching"]
+    },
+    {
+      "name": "You.com",
+      "website": "https://you.com",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": false,
+      "best_for": ["AI Search Engine", "Citations", "Multi-model Chat"]
+    },
+    {
+      "name": "Phind",
+      "website": "https://www.phind.com",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": false,
+      "best_for": ["Developer Search", "Code Solutions", "Technical Answers"]
+    },
+    {
+      "name": "HuggingChat",
+      "website": "https://huggingface.co/chat",
+      "pricing": "Free",
+      "privacy": "Open Source",
+      "login_required": false,
+      "best_for": ["Open Source Models", "Custom Assistants", "Llama & DeepSeek"]
+    },
+    {
+      "name": "OpenRouter",
+      "website": "https://openrouter.ai/chat",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": false,
+      "best_for": ["Unified LLM API", "Model Comparison", "Pay-as-you-go"]
+    }
+  ],
+  "image generator": [
+    {
+      "name": "Leonardo",
+      "website": "https://app.leonardo.ai",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Game Assets", "Concept Art", "High Control Generation"]
+    },
+    {
+      "name": "Ideogram",
+      "website": "https://ideogram.ai",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Accurate Typography", "Logos", "Graphic Design"]
+    },
+    {
+      "name": "Bing Image Creator",
+      "website": "https://www.bing.com/images/create",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["DALL-E 3", "Photorealistic Images", "Fast Generation"]
+    },
+    {
+      "name": "Craiyon",
+      "website": "https://craiyon.com",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": false,
+      "best_for": ["Free Unlimited Generation", "Quick Mockups", "No Login"]
+    }
+  ],
+  "video generator": [
+    {
+      "name": "Pika",
+      "website": "https://pika.art",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Video Animation", "Lip Sync", "Special Effects"]
+    },
+    {
+      "name": "Luma",
+      "website": "https://lumalabs.ai/dream-machine",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Dream Machine", "Realistic Physics", "Camera Moves"]
+    },
+    {
+      "name": "Runway",
+      "website": "https://runwayml.com",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Gen-3 Alpha", "Professional VFX", "Motion Control"]
+    },
+    {
+      "name": "Kling",
+      "website": "https://klingai.com",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["High Motion Video", "Long Generations", "Realistic Movement"]
+    },
+    {
+      "name": "Google Flow",
+      "website": "https://labs.google/fx/tools/flow",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Interactive Animation", "Google Labs", "Visual Motion"]
+    }
+  ],
+  "coding": [
+    {
+      "name": "Bolt",
+      "website": "https://bolt.new",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": false,
+      "best_for": ["Full-stack In-Browser Dev", "WebContainers", "Prompt-to-App"]
+    },
+    {
+      "name": "Lovable",
+      "website": "https://lovable.dev",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["AI App Builder", "Supabase Integration", "Full-stack Web Apps"]
+    },
+    {
+      "name": "Replit",
+      "website": "https://replit.com",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Cloud IDE", "Multiplayer Coding", "Instant Deployment"]
+    },
+    {
+      "name": "v0",
+      "website": "https://v0.dev",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["UI/UX Generation", "React & Tailwind", "Component Prototyping"]
+    },
+    {
+      "name": "GitHub",
+      "website": "https://github.com",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Git Repositories", "Open Source Code", "Code Search"]
+    },
+    {
+      "name": "Ray.so",
+      "website": "https://ray.so",
+      "pricing": "Free",
+      "privacy": "Private",
+      "login_required": false,
+      "best_for": ["Code Screenshots", "Syntax Highlighting", "Developer Sharing"]
+    },
+    {
+      "name": "DevDocs",
+      "website": "https://devdocs.io",
+      "pricing": "Free",
+      "privacy": "Open Source",
+      "login_required": false,
+      "best_for": ["Offline API Documentation", "Instant Search", "Cheat Sheets"]
+    }
+  ],
+  "tools": [
+    {
+      "name": "Wikipedia",
+      "website": "https://www.wikipedia.org",
+      "pricing": "Free",
+      "privacy": "Open Source",
+      "login_required": false,
+      "best_for": ["Encyclopedia", "Knowledge Base", "Free Research"]
+    },
+    {
+      "name": "Google Translate",
+      "website": "https://translate.google.com",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": false,
+      "best_for": ["Multilingual Translation", "Voice & Text", "Quick Lookups"]
+    },
+    {
+      "name": "Hacker News",
+      "website": "https://news.ycombinator.com",
+      "pricing": "Free",
+      "privacy": "Public",
+      "login_required": false,
+      "best_for": ["Tech News", "Developer Discussions", "Startups"]
+    },
+    {
+      "name": "Canva",
+      "website": "https://www.canva.com",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": true,
+      "best_for": ["Graphic Design", "Presentations", "Social Media Graphics"]
+    },
+    {
+      "name": "Remove.bg",
+      "website": "https://www.remove.bg",
+      "pricing": "Freemium",
+      "privacy": "Proprietary",
+      "login_required": false,
+      "best_for": ["Instant Background Removal", "Product Cutouts", "Portrait Cleanup"]
+    },
+    {
+      "name": "iLovePDF",
+      "website": "https://www.ilovepdf.com",
+      "pricing": "Free",
+      "privacy": "Proprietary",
+      "login_required": false,
+      "best_for": ["PDF Merge & Compress", "PDF Conversion", "Document Tools"]
+    },
+    {
+      "name": "Internet Archive",
+      "website": "https://archive.org",
+      "pricing": "Free",
+      "privacy": "Non-profit",
+      "login_required": false,
+      "best_for": ["Wayback Machine", "Historical Webpages", "Free Library"]
+    },
+    {
+      "name": "IconKitchen",
+      "website": "https://icon.kitchen",
+      "pricing": "Free",
+      "privacy": "Open Source",
+      "login_required": false,
+      "best_for": ["App Icon Design", "Android Adaptive Icons", "Vector Badges"]
+    }
+  ]
+}

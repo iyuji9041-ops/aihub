@@ -235,6 +235,19 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        val extraPref = getSharedPreferences("aihub_settings", MODE_PRIVATE)
+        if (!extraPref.getBoolean("extra_services_v1", false)) {
+            val allServiceNames = services.map { it.name }
+            settingsManager.updateSettings { current ->
+                val updatedEnabled = (current.enabledServices + allServiceNames).toSet()
+                val updatedOrder = (current.serviceOrder + allServiceNames).distinct()
+                current.enabledServices = updatedEnabled
+                current.serviceOrder = updatedOrder
+            }
+            extraPref.edit().putBoolean("extra_services_v1", true).apply()
+        }
+
         return services to domainsSet
     }
 

@@ -257,7 +257,7 @@ fun PromptVaultSheet(
                 Button(
                     onClick = {
                         promptToDelete?.let {
-                            settingsManager.deleteSavedPrompt(it.id)
+                            settingsManager.deleteSavedPrompt(it)
                             promptsList = settingsManager.loadSavedPrompts()
                             Toast.makeText(context, "Prompt deleted", Toast.LENGTH_SHORT).show()
                         }
