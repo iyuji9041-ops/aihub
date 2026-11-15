@@ -269,7 +269,7 @@ fun DrawerContent(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    painter = painterResource(R.mipmap.ic_launcher),
+                                    painter = painterResource(R.drawable.app_logo),
                                     contentDescription = stringResource(R.string.app_logo_description),
                                     tint = Color.Unspecified,
                                     modifier = Modifier.size(44.dp)

@@ -156,7 +156,7 @@ fun AboutScreen(context: Context, onBack: () -> Unit) {
                                 .scale(scale)
                         ) {
                             Image(
-                                painter = painterResource(R.mipmap.ic_launcher),
+                                painter = painterResource(R.drawable.app_logo),
                                 contentDescription = stringResource(R.string.app_logo_description),
                                 modifier = Modifier
                                     .size(64.dp)
