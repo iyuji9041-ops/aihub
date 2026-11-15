@@ -49,8 +49,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
@@ -788,6 +790,26 @@ fun AiHubApp(
                 .fillMaxSize()
                 .imePadding(),
             topBar = {
+                val currentHost = remember(selectedService.url) {
+                    try {
+                        android.net.Uri.parse(selectedService.url).host?.lowercase() ?: ""
+                    } catch (_: Exception) {
+                        ""
+                    }
+                }
+                val isCurrentAudioMuted = remember(currentHost, settings.audioMutedHosts) {
+                    currentHost.isNotBlank() && settings.audioMutedHosts.any { h ->
+                        val hl = h.trim().lowercase()
+                        currentHost == hl || currentHost.endsWith(".$hl")
+                    }
+                }
+                val isCurrentVideoBlocked = remember(currentHost, settings.videoBlockedHosts) {
+                    currentHost.isNotBlank() && settings.videoBlockedHosts.any { h ->
+                        val hl = h.trim().lowercase()
+                        currentHost == hl || currentHost.endsWith(".$hl")
+                    }
+                }
+
                 AiHubAppBar(
                     selectedService = selectedService,
                     onMenuClick = {
@@ -827,6 +849,104 @@ fun AiHubApp(
                         applySettingsToAllWebViews(true)
                     },
                     isDesktopMode = settings.desktopView,
+                    isAudioMuted = isCurrentAudioMuted,
+                    onToggleAudioMute = {
+                        if (currentHost.isNotBlank()) {
+                            val currentlyMuted = isCurrentAudioMuted
+                            val newSet = if (currentlyMuted) {
+                                settings.audioMutedHosts.filterNot { h ->
+                                    val hl = h.trim().lowercase()
+                                    currentHost == hl || currentHost.endsWith(".$hl") || hl.endsWith(".$currentHost")
+                                }.toSet()
+                            } else {
+                                settings.audioMutedHosts + currentHost
+                            }
+                            settingsManager.updateSettings { it.audioMutedHosts = newSet }
+
+                            val currentWebView = webViews[selectedService.name]
+                            if (!currentlyMuted) {
+                                val muteJs = "window.__aihubMuteAudio = true; document.querySelectorAll('video,audio').forEach(m=>{m.muted=true;m.volume=0}); window.speechSynthesis&&speechSynthesis.cancel();"
+                                currentWebView?.evaluateJavascript(muteJs, null)
+                                scope.launch {
+                                    snackbarHostState.currentSnackbarData?.dismiss()
+                                    snackbarHostState.showSnackbar(
+                                        message = "Audio muted for $currentHost",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                }
+                            } else {
+                                currentWebView?.evaluateJavascript("window.__aihubMuteAudio = false;", null)
+                                scope.launch {
+                                    snackbarHostState.currentSnackbarData?.dismiss()
+                                    val result = snackbarHostState.showSnackbar(
+                                        message = "Reload to apply",
+                                        actionLabel = "Reload",
+                                        duration = SnackbarDuration.Long
+                                    )
+                                    if (result == SnackbarResult.ActionPerformed) {
+                                        currentWebView?.reload()
+                                        updateServiceState(selectedService.name) { state ->
+                                            state.copy(
+                                                webViewState = WebViewState.LOADING,
+                                                isLoading = true,
+                                                error = null,
+                                                progress = 0
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    isVideoBlocked = isCurrentVideoBlocked,
+                    onToggleVideoBlock = {
+                        if (currentHost.isNotBlank()) {
+                            val currentlyBlocked = isCurrentVideoBlocked
+                            val newSet = if (currentlyBlocked) {
+                                settings.videoBlockedHosts.filterNot { h ->
+                                    val hl = h.trim().lowercase()
+                                    currentHost == hl || currentHost.endsWith(".$hl") || hl.endsWith(".$currentHost")
+                                }.toSet()
+                            } else {
+                                settings.videoBlockedHosts + currentHost
+                            }
+                            settingsManager.updateSettings { it.videoBlockedHosts = newSet }
+
+                            val currentWebView = webViews[selectedService.name]
+                            if (!currentlyBlocked) {
+                                val blockJs = "window.__aihubBlockVideo = true; document.querySelectorAll('video').forEach(m=>{m.pause();});"
+                                currentWebView?.evaluateJavascript(blockJs, null)
+                                scope.launch {
+                                    snackbarHostState.currentSnackbarData?.dismiss()
+                                    snackbarHostState.showSnackbar(
+                                        message = "Videos blocked for $currentHost",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                }
+                            } else {
+                                currentWebView?.evaluateJavascript("window.__aihubBlockVideo = false;", null)
+                                scope.launch {
+                                    snackbarHostState.currentSnackbarData?.dismiss()
+                                    val result = snackbarHostState.showSnackbar(
+                                        message = "Reload to apply",
+                                        actionLabel = "Reload",
+                                        duration = SnackbarDuration.Long
+                                    )
+                                    if (result == SnackbarResult.ActionPerformed) {
+                                        currentWebView?.reload()
+                                        updateServiceState(selectedService.name) { state ->
+                                            state.copy(
+                                                webViewState = WebViewState.LOADING,
+                                                isLoading = true,
+                                                error = null,
+                                                progress = 0
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
                     onToggleImmersiveMode = { toggleImmersiveMode() },
                     isImmersiveMode = isImmersiveMode,
                     onNextService = { cycleService(forward = true) },

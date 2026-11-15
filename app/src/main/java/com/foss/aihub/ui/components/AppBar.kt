@@ -29,6 +29,10 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material.icons.outlined.VideocamOff
+import androidx.compose.material.icons.outlined.VolumeOff
+import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material.icons.rounded.AcUnit
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Campaign
@@ -127,6 +131,10 @@ fun AiHubAppBar(
     isSplitScreenActive: Boolean = false,
     onToggleDesktopMode: () -> Unit = {},
     isDesktopMode: Boolean = false,
+    onToggleAudioMute: () -> Unit = {},
+    isAudioMuted: Boolean = false,
+    onToggleVideoBlock: () -> Unit = {},
+    isVideoBlocked: Boolean = false,
     onToggleImmersiveMode: () -> Unit = {},
     isImmersiveMode: Boolean = false,
     onNextService: () -> Unit = {},
@@ -283,6 +291,38 @@ fun AiHubAppBar(
                         imageVector = Icons.Rounded.ElectricBolt,
                         contentDescription = "Quick Prompt Vault",
                         tint = colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                // 4. Video button
+                TooltipIconButton(
+                    tooltipText = if (isVideoBlocked) "Unblock Videos" else "Block Videos",
+                    onClick = onToggleVideoBlock,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                ) {
+                    Icon(
+                        imageVector = if (isVideoBlocked) Icons.Outlined.VideocamOff else Icons.Outlined.Videocam,
+                        contentDescription = if (isVideoBlocked) "Unblock Videos" else "Block Videos",
+                        tint = if (isVideoBlocked) colorScheme.error else colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                // 5. Audio button (next to Video button)
+                TooltipIconButton(
+                    tooltipText = if (isAudioMuted) "Unmute Audio" else "Mute Audio",
+                    onClick = onToggleAudioMute,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                ) {
+                    Icon(
+                        imageVector = if (isAudioMuted) Icons.Outlined.VolumeOff else Icons.Outlined.VolumeUp,
+                        contentDescription = if (isAudioMuted) "Unmute Audio" else "Mute Audio",
+                        tint = if (isAudioMuted) colorScheme.error else colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(22.dp)
                     )
                 }

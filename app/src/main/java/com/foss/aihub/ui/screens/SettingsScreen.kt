@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Apps
@@ -44,6 +45,8 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.TextIncrease
+import androidx.compose.material.icons.outlined.VideocamOff
+import androidx.compose.material.icons.outlined.VolumeOff
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material.icons.outlined.ZoomIn
 import androidx.compose.material3.AlertDialog
@@ -54,6 +57,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -170,6 +174,8 @@ fun SettingsScreen(
 
     var blockUnnecessaryConnections by remember { mutableStateOf(settings.blockAdsAndTrackers) }
     var saveDataOnMobile by remember { mutableStateOf(settings.saveDataOnMobile) }
+    var audioMutedHosts by remember { mutableStateOf(settings.audioMutedHosts) }
+    var videoBlockedHosts by remember { mutableStateOf(settings.videoBlockedHosts) }
     var proxyOption by remember { mutableStateOf(if (settings.isProxy) settings.proxyType else "none") }
     var proxyHost by remember { mutableStateOf(settings.proxyHost) }
     var proxyPort by remember { mutableStateOf(settings.proxyPort) }
@@ -229,6 +235,8 @@ fun SettingsScreen(
                         it.proxyPort = restored.proxyPort
                         it.serviceOrder = restored.serviceOrder
                         it.favoriteServices = restored.favoriteServices
+                        it.audioMutedHosts = restored.audioMutedHosts
+                        it.videoBlockedHosts = restored.videoBlockedHosts
                     }
 
                     loadLastAi = restored.loadLastOpenedAI
@@ -255,6 +263,8 @@ fun SettingsScreen(
                     selectedFontSizePercent = restored.fontSizePercentage
                     blockUnnecessaryConnections = restored.blockAdsAndTrackers
                     saveDataOnMobile = restored.saveDataOnMobile
+                    audioMutedHosts = restored.audioMutedHosts
+                    videoBlockedHosts = restored.videoBlockedHosts
                     proxyOption = if (restored.isProxy) restored.proxyType else "none"
                     proxyHost = restored.proxyHost
                     proxyPort = restored.proxyPort
@@ -1054,6 +1064,94 @@ fun SettingsScreen(
                                     }
                                 }, colors = defaultSwitchTheme
                             )
+                        }
+
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
+                        SettingItem(
+                            title = "Muted Sites (Audio)",
+                            description = if (audioMutedHosts.isEmpty()) "No sites muted" else "${audioMutedHosts.size} site(s) muted",
+                            icon = Icons.Outlined.VolumeOff,
+                            iconColor = MaterialTheme.colorScheme.primary
+                        )
+
+                        if (audioMutedHosts.isNotEmpty()) {
+                            @OptIn(ExperimentalLayoutApi::class)
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                            ) {
+                                audioMutedHosts.forEach { host ->
+                                    InputChip(
+                                        selected = false,
+                                        onClick = {},
+                                        label = { Text(host, style = MaterialTheme.typography.bodySmall) },
+                                        trailingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remove $host",
+                                                modifier = Modifier
+                                                    .size(16.dp)
+                                                    .clickable {
+                                                        val updated = audioMutedHosts - host
+                                                        audioMutedHosts = updated
+                                                        settingsManager.updateSettings { it.audioMutedHosts = updated }
+                                                    }
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        if (videoBlockedHosts.isNotEmpty()) {
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+
+                            SettingItem(
+                                title = "Blocked Sites (Video)",
+                                description = "${videoBlockedHosts.size} site(s) blocked",
+                                icon = Icons.Outlined.VideocamOff,
+                                iconColor = MaterialTheme.colorScheme.primary
+                            )
+
+                            @OptIn(ExperimentalLayoutApi::class)
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                            ) {
+                                videoBlockedHosts.forEach { host ->
+                                    InputChip(
+                                        selected = false,
+                                        onClick = {},
+                                        label = { Text(host, style = MaterialTheme.typography.bodySmall) },
+                                        trailingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remove $host",
+                                                modifier = Modifier
+                                                    .size(16.dp)
+                                                    .clickable {
+                                                        val updated = videoBlockedHosts - host
+                                                        videoBlockedHosts = updated
+                                                        settingsManager.updateSettings { it.videoBlockedHosts = updated }
+                                                    }
+                                            )
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
 

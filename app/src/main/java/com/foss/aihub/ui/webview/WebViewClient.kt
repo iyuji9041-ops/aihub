@@ -37,6 +37,7 @@ class CustomWebViewClient(
         } else if (url != null) {
             view?.settings?.userAgentString = getCleanUserAgent(context, context.settingsManager.settingsFlow.value.desktopView)
         }
+        injectMediaGuard(view)
         Log.d("AI_HUB", "Page started: ${service.name} - $url")
     }
 
@@ -97,6 +98,7 @@ class CustomWebViewClient(
                 injectShareInterceptor(view)
                 injectCustomJs(view)
                 injectCustomCss(view)
+                injectMediaGuard(view)
             }
 
             CookieManager.getInstance().flush()
@@ -154,6 +156,48 @@ class CustomWebViewClient(
         try {
             if (request.isForMainFrame == false) {
                 val settings = context.settingsManager.settingsFlow.value
+                val serviceHost = try { Uri.parse(service.url).host?.lowercase() } catch (_: Exception) { null }
+
+                if (serviceHost != null) {
+                    val isAudioMuted = settings.audioMutedHosts.any { h ->
+                        val hl = h.trim().lowercase()
+                        serviceHost == hl || serviceHost.endsWith(".$hl")
+                    }
+                    if (isAudioMuted) {
+                        val path = request.url?.path?.lowercase() ?: ""
+                        val audioExtensions = listOf(".mp3", ".aac", ".ogg", ".oga", ".wav", ".m4a", ".opus", ".flac")
+                        if (audioExtensions.any { path.endsWith(it) }) {
+                            return WebResourceResponse(
+                                "audio/mpeg",
+                                "UTF-8",
+                                204,
+                                "No Content",
+                                emptyMap(),
+                                ByteArrayInputStream(ByteArray(0))
+                            )
+                        }
+                    }
+
+                    val isVideoBlocked = settings.videoBlockedHosts.any { h ->
+                        val hl = h.trim().lowercase()
+                        serviceHost == hl || serviceHost.endsWith(".$hl")
+                    }
+                    if (isVideoBlocked) {
+                        val path = request.url?.path?.lowercase() ?: ""
+                        val videoExtensions = listOf(".mp4", ".webm", ".mov", ".m3u8", ".mpd", ".m4s")
+                        if (videoExtensions.any { path.endsWith(it) }) {
+                            return WebResourceResponse(
+                                "video/mp4",
+                                "UTF-8",
+                                204,
+                                "No Content",
+                                emptyMap(),
+                                ByteArrayInputStream(ByteArray(0))
+                            )
+                        }
+                    }
+                }
+
                 if (settings.saveDataOnMobile) {
                     val connectivityManager =
                         context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
@@ -222,5 +266,43 @@ class CustomWebViewClient(
             val script = context.readAssetsFile("customCss.txt").replace("{{CSS}}", escapedCss)
             view.evaluateJavascript(script, null)
         }
+    }
+
+    private fun injectMediaGuard(view: WebView?) {
+        if (view == null) return
+        try {
+            val settings = context.settingsManager.settingsFlow.value
+            val serviceHost = try { Uri.parse(service.url).host?.lowercase() } catch (_: Exception) { null }
+            val isAudioMuted = serviceHost != null && settings.audioMutedHosts.any { h ->
+                val hl = h.trim().lowercase()
+                serviceHost == hl || serviceHost.endsWith(".$hl")
+            }
+            val isVideoBlocked = serviceHost != null && settings.videoBlockedHosts.any { h ->
+                val hl = h.trim().lowercase()
+                serviceHost == hl || serviceHost.endsWith(".$hl")
+            }
+            val js = """
+                (function(){
+                    window.__aihubBlockVideo = $isVideoBlocked;
+                    window.__aihubMuteAudio = $isAudioMuted;
+                    if(window.__aihubMediaGuard) return;
+                    window.__aihubMediaGuard=true;
+                    function muteOn(){return window.__aihubMuteAudio===true;}
+                    function vidOff(){return window.__aihubBlockVideo===true;}
+                    function apply(m){ try{ if(muteOn()){ m.muted=true; m.volume=0; } }catch(e){} }
+                    document.addEventListener('play',function(e){ var t=e.target; if(!t||!t.tagName) return;
+                      if(t.tagName==='VIDEO' && vidOff()){ t.pause(); return; }
+                      apply(t); },true);
+                    document.addEventListener('volumechange',function(e){ apply(e.target); },true);
+                    var op=HTMLMediaElement.prototype.play;
+                    HTMLMediaElement.prototype.play=function(){
+                      if(vidOff() && this instanceof HTMLVideoElement) return Promise.reject(new DOMException('Blocked','NotAllowedError'));
+                      apply(this); return op.apply(this,arguments); };
+                    try{ var AC=window.AudioContext||window.webkitAudioContext; if(AC){ var orr=AC.prototype.resume; AC.prototype.resume=function(){ if(muteOn()) return Promise.resolve(); return orr.apply(this,arguments); }; } }catch(e){}
+                    try{ var sp=window.speechSynthesis&&window.speechSynthesis.speak; if(sp){ window.speechSynthesis.speak=function(u){ if(muteOn()) return; return sp.call(window.speechSynthesis,u); }; } }catch(e){}
+                })();
+            """.trimIndent()
+            view.evaluateJavascript(js, null)
+        } catch (_: Exception) {}
     }
 }

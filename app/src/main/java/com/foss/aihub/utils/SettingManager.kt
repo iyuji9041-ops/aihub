@@ -89,6 +89,9 @@ class SettingsManager(context: Context) {
 
         private const val KEY_CUSTOM_AI_SERVICES = "customAiServices"
         private const val KEY_SAVED_PROMPTS = "savedPrompts"
+
+        private const val KEY_AUDIO_MUTED_HOSTS = "audioMutedHosts"
+        private const val KEY_VIDEO_BLOCKED_HOSTS = "videoBlockedHosts"
     }
 
     private fun migrateToNewVersion() {
@@ -156,7 +159,11 @@ class SettingsManager(context: Context) {
         preferredPrivacy = sharedPref.safeGetStringSet(KEY_PREFERRED_PRIVACY, emptySet())
             ?: emptySet(),
         preferredLoginRequired = sharedPref.getString(KEY_PREFERRED_LOGIN_REQUIRED, null)
-            ?.toBooleanStrictOrNull()
+            ?.toBooleanStrictOrNull(),
+        audioMutedHosts = sharedPref.safeGetStringSet(KEY_AUDIO_MUTED_HOSTS, emptySet())
+            ?: emptySet(),
+        videoBlockedHosts = sharedPref.safeGetStringSet(KEY_VIDEO_BLOCKED_HOSTS, emptySet())
+            ?: emptySet()
     )
 
     private fun saveSettings(settings: AppSettings) {
@@ -193,6 +200,8 @@ class SettingsManager(context: Context) {
             putStringSet(KEY_PREFERRED_PRICES, settings.preferredPrices)
             putStringSet(KEY_PREFERRED_PRIVACY, settings.preferredPrivacy)
             putString(KEY_PREFERRED_LOGIN_REQUIRED, settings.preferredLoginRequired?.toString())
+            putStringSet(KEY_AUDIO_MUTED_HOSTS, settings.audioMutedHosts)
+            putStringSet(KEY_VIDEO_BLOCKED_HOSTS, settings.videoBlockedHosts)
         }
     }
 

@@ -1,6 +1,6 @@
 <div align="center">
   <img src="fastlane/metadata/android/en-US/images/icon.png" width="128" style="border-radius: 20%;" alt="App Icon">
-  <h1>AI Hub</h1>
+  <h1>Zaswix Hub</h1>
   <p>
     <strong>All your AI assistants, beautifully together.</strong><br>
     Privacy-first, open-source, and completely customizable.
@@ -81,6 +81,60 @@ By default, AI Hub blocks **ads and trackers** using the [StevenBlack hosts list
     <img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" width="140" alt="Get it on Obtainium">
   </a>
 </div>
+
+---
+
+## 🏗️ Project Structure & Architecture Guide
+
+If you clone or fork **Zaswix Hub**, here is a simple guide to understand the codebase quickly:
+
+```
+clever-ramanujan/
+├── app/
+│   └── src/main/
+│       ├── java/com/foss/aihub/
+│       │   ├── MainActivity.kt               # Entry point; sets up Compose, system bars, deep links
+│       │   ├── models/                       # Data models & schemas
+│       │   │   ├── AiService.kt              # AI service model (name, URL, icon, tags)
+│       │   │   ├── AppSettings.kt            # App settings (theme, audioMutedHosts, videoBlockedHosts, etc.)
+│       │   │   ├── WebViewState.kt           # Enum for WebStates (LOADING, SUCCESS, ERROR)
+│       │   │   └── SettingsBackup.kt         # Backup/restore JSON schema
+│       │   ├── ui/
+│       │   │   ├── components/               # Reusable UI widgets
+│       │   │   │   ├── AppBar.kt             # AiHubAppBar with tab controls (Audio/Video toggles, Freeze, Vault)
+│       │   │   │   ├── BroadcastBar.kt       # Prompt broadcast bar across tabs
+│       │   │   │   ├── NavigationDrawerContent.kt # Left drawer for switching AI services
+│       │   │   │   └── Theme.kt              # Material 3 colors, typography, shapes
+│       │   │   ├── screens/                  # Main Compose screens
+│       │   │   │   ├── AiHubScreen.kt        # Primary container managing WebViews, tabs, and gestures
+│       │   │   │   ├── BentoHomeScreen.kt    # Bento-style home dashboard
+│       │   │   │   ├── SettingsScreen.kt     # Full settings screen (muted sites chips, proxy, data saver)
+│       │   │   │   ├── ManageAiServicesScreen.kt # Enable, disable, and reorder AI services
+│       │   │   │   └── CustomInjectionScreen.kt  # Custom user CSS/JS injector
+│       │   │   └── webview/                  # WebView customization
+│       │   │       ├── WebViewClient.kt      # Request interception, media guard & ad blocking
+│       │   │       ├── WebChromeClient.kt    # Progress bars, file upload, geolocation, JS alerts
+│       │   │       ├── WebViewSecurity.kt    # Domain allowlist and connectivity guard
+│       │   │       └── WebViewUtils.kt       # User-Agent spoofing and cookie management
+│       │   └── utils/                        # Utility singletons and helpers
+│       │       ├── SettingManager.kt         # SharedPreferences manager + StateFlow
+│       │       ├── SettingBackupHelper.kt    # JSON export/import for settings
+│       │       ├── LinkUtils.kt              # External link handling and tab dispatching
+│       │       └── NetworkUtils.kt           # Network connectivity observers
+│       ├── res/                              # Android Resources
+│       │   ├── mipmap-*/                     # Launcher icons (adaptive + legacy)
+│       │   └── values/strings.xml            # Localized strings (App name: Zaswix Hub)
+│       └── assets/                           # Static assets, fallback AI catalogs, injection scripts
+└── .github/workflows/
+    └── build-apk.yml                         # Automated GitHub Actions APK build & Release workflow
+```
+
+### 🔑 Key Concepts for Developers
+1. **Multi-Tab Architecture (`AiHubScreen.kt`)**: WebViews are preserved in a pool (`webViews: Map<String, WebView>`) so conversations remain active without reloading when switching tabs.
+2. **Per-Site Media Controls (`WebViewClient.kt` & `AppBar.kt`)**: 
+   - **Audio Mute**: Toggling Audio OFF injects an in-page script that mutes `<video>`/`<audio>`, intercepts Web Audio API (`AudioContext`), and silences `speechSynthesis`. In addition, audio file downloads (`.mp3`, `.aac`, `.wav`, etc.) are intercepted with an empty `204 No Content` response.
+   - **Video Block**: Blocks `<video>` elements and video stream file requests.
+3. **RAM & Battery Optimization**: Tabs can be deep-frozen with `onPause()` to consume 0% background CPU while preserving cookies and chat state.
 
 ---
 
