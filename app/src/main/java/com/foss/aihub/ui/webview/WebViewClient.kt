@@ -112,6 +112,7 @@ class CustomWebViewClient(
     ) {
         super.onReceivedError(view, request, error)
         if (request?.isForMainFrame == true) {
+            if (request.url?.toString() == "about:blank") return
             hasErrorOccurred = true
             onProgressUpdate(0)
             onLoadingStateChange(false)
@@ -129,6 +130,7 @@ class CustomWebViewClient(
         // Ignoring server error
         if (errorResponse?.statusCode in 500..599) return
         if (request?.isForMainFrame == true) {
+            if (request.url?.toString() == "about:blank") return
             hasErrorOccurred = true
             onProgressUpdate(0)
             onLoadingStateChange(false)

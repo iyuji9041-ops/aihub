@@ -1148,7 +1148,13 @@ fun AiHubApp(
                             modifier = Modifier.fillMaxSize(),
                         )
 
-                        if (hasCurrentError && currentState.error != null) {
+                        if (selectedService.name in frozenServices) {
+                            FrostedFreezeBanner(
+                                serviceName = selectedService.name,
+                                onWake = { wakeService(selectedService.name) },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else if (hasCurrentError && currentState.error != null) {
                             val (errorCode, errorMessage) = currentState.error!!
                             ErrorOverlay(
                                 errorType = ErrorType.fromErrorCode(errorCode),
@@ -1167,12 +1173,6 @@ fun AiHubApp(
                                     }
                                     webViews[selectedService.name]?.reload()
                                 },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else if (selectedService.name in frozenServices) {
-                            FrostedFreezeBanner(
-                                serviceName = selectedService.name,
-                                onWake = { wakeService(selectedService.name) },
                                 modifier = Modifier.fillMaxSize()
                             )
                         }

@@ -370,6 +370,8 @@ class SettingsManager(context: Context) {
             order.add(service.name)
             saveServiceOrder(order)
         }
+
+        _settingsFlow.value = loadSettings()
     }
 
     fun deleteCustomService(serviceName: String) {
@@ -383,6 +385,8 @@ class SettingsManager(context: Context) {
         val order = loadServiceOrder().toMutableList()
         order.remove(serviceName)
         saveServiceOrder(order)
+
+        _settingsFlow.value = loadSettings()
     }
 
     // --- Quick Prompt Vault (Feature 3) ---
