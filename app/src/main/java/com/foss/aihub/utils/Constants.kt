@@ -14,7 +14,7 @@ const val CLOUD_BASE_URL = "https://raw.githubusercontent.com/iyuji9041-ops/aihu
 const val UPSTREAM_MIRROR_BASE_URL = "https://silentcoderhere.github.io/aihub-config-data/"
 const val CONFIG_PUBLIC_KEY_BASE64 = ""
 const val APP_NAME = "Zaswix Hub"
-const val VERSION = "3.2.2"
+const val VERSION = "3.2.3"
 const val AI_SERVICES_FILE = "ais.json"
 const val DOMAINS_FILE = "domains.txt"
 

@@ -17,8 +17,8 @@ android {
         minSdk = 26
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 18
-        versionName = "3.2.2"
+        versionCode = 19
+        versionName = "3.2.3"
     }
 
     compileOptions {
@@ -43,24 +43,38 @@ android {
         includeInBundle = false
     }
 
-    val keystorePropertiesFile = file("$rootDir/../../local.properties")
-    val keystoreProperties = Properties()
-    val keystoreExists = keystorePropertiesFile.exists()
+    val keystoreFile = System.getenv("KEYSTORE_FILE")?.let { file(it) }
+        ?: file("$rootDir/keystore.jks").takeIf { it.exists() }
+        ?: file("$rootDir/../../keystore.jks").takeIf { it.exists() }
 
-    if (keystoreExists) {
+    val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
+    val keyAlias = System.getenv("KEY_ALIAS")
+    val keyPassword = System.getenv("KEY_PASSWORD")
+
+    val keystorePropertiesFile = file("$rootDir/keystore.properties").takeIf { it.exists() }
+        ?: file("$rootDir/local.properties").takeIf { it.exists() }
+        ?: file("$rootDir/../../local.properties").takeIf { it.exists() }
+
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile != null && keystorePropertiesFile.exists()) {
         keystoreProperties.load(keystorePropertiesFile.inputStream())
         println("Keystore properties loaded successfully.")
-    } else {
-        println("Keystore properties file not found. No signing configuration will be applied.")
     }
 
+    val finalStoreFile = keystoreFile ?: keystoreProperties.getProperty("STORE_FILE")?.let { file(it) }
+    val finalStorePassword = keystorePassword ?: keystoreProperties.getProperty("KEYSTORE_PASSWORD")
+    val finalKeyAlias = keyAlias ?: keystoreProperties.getProperty("KEY_ALIAS")
+    val finalKeyPassword = keyPassword ?: keystoreProperties.getProperty("KEY_PASSWORD")
+
+    val canSignRelease = finalStoreFile != null && finalStoreFile.exists() && !finalStorePassword.isNullOrBlank()
+
     signingConfigs {
-        if (keystoreExists) {
+        if (canSignRelease) {
             create("release") {
-                storeFile = file("$rootDir/../../keystore.jks")
-                storePassword = keystoreProperties.getProperty("KEYSTORE_PASSWORD") ?: ""
-                keyAlias = keystoreProperties.getProperty("KEY_ALIAS") ?: ""
-                keyPassword = keystoreProperties.getProperty("KEY_PASSWORD") ?: ""
+                storeFile = finalStoreFile
+                storePassword = finalStorePassword
+                keyAlias = finalKeyAlias ?: ""
+                keyPassword = finalKeyPassword ?: finalStorePassword
             }
         }
     }
@@ -73,8 +87,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
             )
 
-            if (keystoreExists) {
+            if (canSignRelease) {
                 signingConfig = signingConfigs.getByName("release")
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
             }
         }
 

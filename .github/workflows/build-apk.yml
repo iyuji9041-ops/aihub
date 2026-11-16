@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Debug APK
+    name: Build Release & Debug APK
     runs-on: ubuntu-latest
 
     steps:
@@ -31,28 +31,56 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
-
-      - name: Rename APK for Release
+      - name: Decode Release Keystore
         run: |
-          cd app/build/outputs/apk/debug
-          cp app-debug.apk Zaswix-Hub-debug.apk
-          if [ -n "${{ github.ref_name }}" ]; then
-            cp app-debug.apk "Zaswix-Hub-${{ github.ref_name }}.apk"
+          if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > /tmp/release.jks
+            echo "KEYSTORE_FILE=/tmp/release.jks" >> $GITHUB_ENV
+            echo "Release keystore decoded successfully."
+          else
+            echo "No custom keystore secret found, falling back to debug signing for release."
           fi
 
-      - name: Upload Debug APK
+      - name: Build APKs (Release & Debug)
+        run: ./gradlew assembleRelease assembleDebug --stacktrace --no-daemon
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Prepare APKs for Release
+        run: |
+          mkdir -p release-output
+          # 1. Release APK (Minified, ProGuard/R8 shrunk & signed)
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk release-output/Zaswix-Hub-release.apk
+            if [ -n "${{ github.ref_name }}" ]; then
+              cp app/build/outputs/apk/release/app-release.apk "release-output/Zaswix-Hub-${{ github.ref_name }}-release.apk"
+            fi
+            echo "Release APK prepared: $(ls -lh release-output/*release*.apk)"
+          fi
+          # 2. Debug APK (Unminified dev build)
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk release-output/Zaswix-Hub-debug.apk
+            if [ -n "${{ github.ref_name }}" ]; then
+              cp app/build/outputs/apk/debug/app-debug.apk "release-output/Zaswix-Hub-${{ github.ref_name }}-debug.apk"
+            fi
+            echo "Debug APK prepared: $(ls -lh release-output/*debug*.apk)"
+          fi
+          # 3. Clean up decrypted keystore from runner disk
+          rm -f /tmp/release.jks
+
+      - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Zaswix-Hub-Debug-APK
-          path: app/build/outputs/apk/debug/*.apk
+          name: Zaswix-Hub-APKs
+          path: release-output/*.apk
           if-no-files-found: error
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/debug/Zaswix-Hub-*.apk
+          files: release-output/Zaswix-Hub-*.apk
           name: ${{ github.ref_name }} - Zaswix Hub
           generate_release_notes: true
