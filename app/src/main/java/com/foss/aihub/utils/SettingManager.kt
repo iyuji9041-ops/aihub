@@ -61,6 +61,7 @@ class SettingsManager(context: Context) {
         private const val KEY_THIRD_PARTY_COOKIES = "thirdPartyCookies"
         private const val KEY_FONT_SIZE_PERCENT = "fontSizePercent"
         private const val KEY_MAX_KEEP_ALIVE = "maxKeepAlive"
+        private const val KEY_FREEZE_MODE = "freezeMode"
         private const val KEY_UPDATE_FREQUENCY_DAYS = "updateFrequencyDays"
         private const val KEY_BLOCK_ADS_TRACKERS = "blockAdsAndTrackers"
         private const val KEY_SAVE_DATA_ON_MOBILE = "saveDataOnMobile"
@@ -129,7 +130,8 @@ class SettingsManager(context: Context) {
         serviceOrder = loadServiceOrder(),
         enabledServices = loadEnabledServices(),
         favoriteServices = loadFavoriteServices(),
-        maxKeepAlive = sharedPref.getInt(KEY_MAX_KEEP_ALIVE, 5),
+        maxKeepAlive = sharedPref.getInt(KEY_MAX_KEEP_ALIVE, 3),
+        freezeMode = sharedPref.getString(KEY_FREEZE_MODE, "hard") ?: "hard",
         enableZoom = sharedPref.getBoolean(KEY_ENABLE_ZOOM, true),
         desktopView = sharedPref.getBoolean(KEY_DESKTOP_VIEW, false),
         thirdPartyCookies = sharedPref.getBoolean(KEY_THIRD_PARTY_COOKIES, true),
@@ -179,6 +181,7 @@ class SettingsManager(context: Context) {
             saveEnabledServices(settings.enabledServices)
             saveFavoriteServices(settings.favoriteServices)
             putInt(KEY_MAX_KEEP_ALIVE, settings.maxKeepAlive)
+            putString(KEY_FREEZE_MODE, settings.freezeMode)
             putBoolean(KEY_ENABLE_ZOOM, settings.enableZoom)
             putBoolean(KEY_DESKTOP_VIEW, settings.desktopView)
             putBoolean(KEY_THIRD_PARTY_COOKIES, settings.thirdPartyCookies)

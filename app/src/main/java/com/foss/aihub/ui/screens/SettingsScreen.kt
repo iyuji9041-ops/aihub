@@ -50,6 +50,7 @@ import androidx.compose.material.icons.outlined.VideocamOff
 import androidx.compose.material.icons.outlined.VolumeOff
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material.icons.outlined.ZoomIn
+import androidx.compose.material.icons.rounded.AcUnit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -164,8 +165,9 @@ fun SettingsScreen(
 
     var limitSimultaneousAIs by remember { mutableStateOf(settings.maxKeepAlive != Int.MAX_VALUE) }
     var maxKeepAlive by remember {
-        mutableIntStateOf(if (settings.maxKeepAlive == Int.MAX_VALUE) 5 else settings.maxKeepAlive)
+        mutableIntStateOf(if (settings.maxKeepAlive == Int.MAX_VALUE) 3 else settings.maxKeepAlive)
     }
+    var freezeMode by remember { mutableStateOf(settings.freezeMode) }
 
     var selectedTheme by remember { mutableStateOf(settings.theme) }
     var enableZoom by remember { mutableStateOf(settings.enableZoom) }
@@ -224,6 +226,7 @@ fun SettingsScreen(
                         it.preferredPrivacy = restored.preferredPrivacy
                         it.preferredLoginRequired = restored.preferredLoginRequired
                         it.maxKeepAlive = restored.maxKeepAlive
+                        it.freezeMode = restored.freezeMode
                         it.enableZoom = restored.enableZoom
                         it.desktopView = restored.desktopView
                         it.thirdPartyCookies = restored.thirdPartyCookies
@@ -259,7 +262,8 @@ fun SettingsScreen(
                     }
                     limitSimultaneousAIs = restored.maxKeepAlive != Int.MAX_VALUE
                     maxKeepAlive =
-                        if (restored.maxKeepAlive == Int.MAX_VALUE) 5 else restored.maxKeepAlive
+                        if (restored.maxKeepAlive == Int.MAX_VALUE) 3 else restored.maxKeepAlive
+                    freezeMode = restored.freezeMode
                     enableZoom = restored.enableZoom
                     desktopView = restored.desktopView
                     thirdPartyCookies = restored.thirdPartyCookies
@@ -862,6 +866,49 @@ fun SettingsScreen(
                                             }
                                         }
                                     }
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
+                        SettingItem(
+                            title = "Freeze mode",
+                            description = if (freezeMode == "hard") "Hard: unloads tab (maximum battery & RAM saving)" else "Light: pauses tab in memory",
+                            icon = Icons.Rounded.AcUnit,
+                            iconColor = MaterialTheme.colorScheme.primary
+                        ) {
+                            SingleChoiceSegmentedButtonRow {
+                                SegmentedButton(
+                                    selected = freezeMode == "hard",
+                                    onClick = {
+                                        freezeMode = "hard"
+                                        settingsManager.updateSettings { it.freezeMode = "hard" }
+                                    },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                                    colors = SegmentedButtonDefaults.colors(
+                                        activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                ) {
+                                    Text("Hard", style = MaterialTheme.typography.labelMedium)
+                                }
+                                SegmentedButton(
+                                    selected = freezeMode == "light",
+                                    onClick = {
+                                        freezeMode = "light"
+                                        settingsManager.updateSettings { it.freezeMode = "light" }
+                                    },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                                    colors = SegmentedButtonDefaults.colors(
+                                        activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                ) {
+                                    Text("Light", style = MaterialTheme.typography.labelMedium)
                                 }
                             }
                         }
