@@ -1,6 +1,6 @@
 <div align="center">
   <img src="fastlane/metadata/android/en-US/images/icon.png" width="128" style="border-radius: 20%;" alt="App Icon">
-  <h1><APP_NAME></h1>
+  <h1>Zaswix Hub</h1>
   <p>
     <strong>All your AI assistants, beautifully together.</strong><br>
     Privacy-first, open-source, and completely customizable.
@@ -156,13 +156,13 @@ Help translate AI Hub into your language! We use [Weblate](https://hosted.weblat
 To verify the authenticity of the release APK, you can check its signing certificate fingerprint using `apksigner`:
 
 ```bash
-apksigner verify --print-certs <APP_NAME>-debug.apk
+apksigner verify --print-certs zaswix-hub-debug.apk
 ```
 
 Or using `keytool`:
 
 ```bash
-keytool -printcert -jarfile <APP_NAME>-debug.apk
+keytool -printcert -jarfile zaswix-hub-debug.apk
 ```
 
 Compare the SHA-256 fingerprint against the trusted fingerprint to ensure the build has not been tampered with.

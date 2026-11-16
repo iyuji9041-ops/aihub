@@ -131,8 +131,8 @@ fun AiHubAppBar(
     isSplitScreenActive: Boolean = false,
     onToggleDesktopMode: () -> Unit = {},
     isDesktopMode: Boolean = false,
-    onToggleAudioMute: () -> Unit = {},
-    isAudioMuted: Boolean = false,
+    onToggleAudio: () -> Unit = {},
+    isAudioAllowed: Boolean = false,
     onToggleVideo: () -> Unit = {},
     isVideoAllowed: Boolean = false,
     onToggleImmersiveMode: () -> Unit = {},
@@ -297,7 +297,7 @@ fun AiHubAppBar(
 
                 // 4. Video button
                 TooltipIconButton(
-                    tooltipText = if (isVideoAllowed) "Disallow Videos" else "Allow Videos",
+                    tooltipText = if (isVideoAllowed) "Block Video" else "Unblock Video",
                     onClick = onToggleVideo,
                     modifier = Modifier
                         .size(40.dp)
@@ -305,7 +305,7 @@ fun AiHubAppBar(
                 ) {
                     Icon(
                         imageVector = if (isVideoAllowed) Icons.Outlined.Videocam else Icons.Outlined.VideocamOff,
-                        contentDescription = if (isVideoAllowed) "Disallow Videos" else "Allow Videos",
+                        contentDescription = if (isVideoAllowed) "Block Video" else "Unblock Video",
                         tint = if (isVideoAllowed) colorScheme.primary else colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(22.dp)
                     )
@@ -313,16 +313,16 @@ fun AiHubAppBar(
 
                 // 5. Audio button (next to Video button)
                 TooltipIconButton(
-                    tooltipText = if (isAudioMuted) "Unmute Audio" else "Mute Audio",
-                    onClick = onToggleAudioMute,
+                    tooltipText = if (isAudioAllowed) "Block Audio" else "Unblock Audio",
+                    onClick = onToggleAudio,
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
                 ) {
                     Icon(
-                        imageVector = if (isAudioMuted) Icons.Outlined.VolumeOff else Icons.Outlined.VolumeUp,
-                        contentDescription = if (isAudioMuted) "Unmute Audio" else "Mute Audio",
-                        tint = if (isAudioMuted) colorScheme.error else colorScheme.onSurfaceVariant,
+                        imageVector = if (isAudioAllowed) Icons.Outlined.VolumeUp else Icons.Outlined.VolumeOff,
+                        contentDescription = if (isAudioAllowed) "Block Audio" else "Unblock Audio",
+                        tint = if (isAudioAllowed) colorScheme.primary else colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(22.dp)
                     )
                 }

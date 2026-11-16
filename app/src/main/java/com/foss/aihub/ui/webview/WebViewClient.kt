@@ -167,11 +167,11 @@ class CustomWebViewClient(
                 val path = request.url?.path?.lowercase() ?: ""
 
                 if (serviceHost != null) {
-                    val isAudioMuted = settings.audioMutedHosts.any { h ->
+                    val isAudioAllowed = settings.audioAllowedHosts.any { h ->
                         val hl = h.trim().lowercase()
-                        serviceHost == hl || serviceHost.endsWith(".$hl")
+                        serviceHost == hl || serviceHost.endsWith(".$hl") || hl.endsWith(".$serviceHost")
                     }
-                    if (isAudioMuted) {
+                    if (!isAudioAllowed) {
                         val audioExtensions = listOf(".mp3", ".aac", ".ogg", ".oga", ".wav", ".m4a", ".opus", ".flac")
                         if (audioExtensions.any { path.endsWith(it) }) {
                             return WebResourceResponse(
@@ -184,30 +184,23 @@ class CustomWebViewClient(
                             )
                         }
                     }
-                }
 
-                val connectivityManager =
-                    context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-                val isNetworkUnmetered = connectivityManager?.isActiveNetworkMetered == false
-
-                val isTabHostAllowed = serviceHost != null && settings.videoAllowedHosts.any { h ->
-                    val hl = h.trim().lowercase()
-                    serviceHost == hl || serviceHost.endsWith(".$hl")
-                }
-                val isWifiAllowed = settings.videoAllowOnWifi && isNetworkUnmetered
-                val shouldAllowVideo = !settings.saveDataOnMobile || isTabHostAllowed || isWifiAllowed
-
-                if (!shouldAllowVideo) {
-                    val videoExtensions = listOf(".mp4", ".webm", ".mov", ".m3u8", ".mpd", ".m4s")
-                    if (videoExtensions.any { path.endsWith(it) }) {
-                        return WebResourceResponse(
-                            "video/mp4",
-                            "UTF-8",
-                            204,
-                            "No Content",
-                            emptyMap(),
-                            ByteArrayInputStream(ByteArray(0))
-                        )
+                    val isVideoAllowed = settings.videoAllowedHosts.any { h ->
+                        val hl = h.trim().lowercase()
+                        serviceHost == hl || serviceHost.endsWith(".$hl") || hl.endsWith(".$serviceHost")
+                    }
+                    if (!isVideoAllowed) {
+                        val videoExtensions = listOf(".mp4", ".webm", ".mov", ".m3u8", ".mpd", ".m4s")
+                        if (videoExtensions.any { path.endsWith(it) }) {
+                            return WebResourceResponse(
+                                "video/mp4",
+                                "UTF-8",
+                                204,
+                                "No Content",
+                                emptyMap(),
+                                ByteArrayInputStream(ByteArray(0))
+                            )
+                        }
                     }
                 }
             }
@@ -267,19 +260,17 @@ class CustomWebViewClient(
         try {
             val settings = context.settingsManager.settingsFlow.value
             val serviceHost = try { Uri.parse(service.url).host?.lowercase() } catch (_: Exception) { null }
-            val isAudioMuted = serviceHost != null && settings.audioMutedHosts.any { h ->
+            val isAudioAllowed = serviceHost != null && settings.audioAllowedHosts.any { h ->
                 val hl = h.trim().lowercase()
-                serviceHost == hl || serviceHost.endsWith(".$hl")
+                serviceHost == hl || serviceHost.endsWith(".$hl") || hl.endsWith(".$serviceHost")
             }
-            val connectivityManager =
-                context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            val isNetworkUnmetered = connectivityManager?.isActiveNetworkMetered == false
-            val isTabHostAllowed = serviceHost != null && settings.videoAllowedHosts.any { h ->
+            val isAudioMuted = !isAudioAllowed
+
+            val isVideoAllowed = serviceHost != null && settings.videoAllowedHosts.any { h ->
                 val hl = h.trim().lowercase()
-                serviceHost == hl || serviceHost.endsWith(".$hl")
+                serviceHost == hl || serviceHost.endsWith(".$hl") || hl.endsWith(".$serviceHost")
             }
-            val isWifiAllowed = settings.videoAllowOnWifi && isNetworkUnmetered
-            val isVideoBlocked = settings.saveDataOnMobile && !isTabHostAllowed && !isWifiAllowed
+            val isVideoBlocked = !isVideoAllowed
 
             val js = """
                 (function(){

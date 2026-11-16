@@ -177,7 +177,7 @@ fun SettingsScreen(
 
     var blockUnnecessaryConnections by remember { mutableStateOf(settings.blockAdsAndTrackers) }
     var saveDataOnMobile by remember { mutableStateOf(settings.saveDataOnMobile) }
-    var audioMutedHosts by remember { mutableStateOf(settings.audioMutedHosts) }
+    var audioAllowedHosts by remember { mutableStateOf(settings.audioAllowedHosts) }
     var videoAllowedHosts by remember { mutableStateOf(settings.videoAllowedHosts) }
     var videoAllowOnWifi by remember { mutableStateOf(settings.videoAllowOnWifi) }
     var proxyOption by remember { mutableStateOf(if (settings.isProxy) settings.proxyType else "none") }
@@ -240,7 +240,7 @@ fun SettingsScreen(
                         it.proxyPort = restored.proxyPort
                         it.serviceOrder = restored.serviceOrder
                         it.favoriteServices = restored.favoriteServices
-                        it.audioMutedHosts = restored.audioMutedHosts
+                        it.audioAllowedHosts = restored.audioAllowedHosts
                         it.videoAllowedHosts = restored.videoAllowedHosts
                         it.videoAllowOnWifi = restored.videoAllowOnWifi
                     }
@@ -270,7 +270,7 @@ fun SettingsScreen(
                     selectedFontSizePercent = restored.fontSizePercentage
                     blockUnnecessaryConnections = restored.blockAdsAndTrackers
                     saveDataOnMobile = restored.saveDataOnMobile
-                    audioMutedHosts = restored.audioMutedHosts
+                    audioAllowedHosts = restored.audioAllowedHosts
                     videoAllowedHosts = restored.videoAllowedHosts
                     videoAllowOnWifi = restored.videoAllowOnWifi
                     proxyOption = if (restored.isProxy) restored.proxyType else "none"
@@ -1145,7 +1145,7 @@ fun SettingsScreen(
 
                         SettingItem(
                             title = "Allowed Sites (Video)",
-                            description = if (videoAllowedHosts.isEmpty()) "No sites allowed" else "${videoAllowedHosts.size} site(s) allowed",
+                            description = if (videoAllowedHosts.isEmpty()) "All videos blocked by default" else "${videoAllowedHosts.size} site(s) unblocked",
                             icon = Icons.Outlined.Videocam,
                             iconColor = MaterialTheme.colorScheme.primary
                         )
@@ -1188,13 +1188,13 @@ fun SettingsScreen(
                         )
 
                         SettingItem(
-                            title = "Muted Sites (Audio)",
-                            description = if (audioMutedHosts.isEmpty()) "No sites muted" else "${audioMutedHosts.size} site(s) muted",
-                            icon = Icons.Outlined.VolumeOff,
+                            title = "Allowed Sites (Audio)",
+                            description = if (audioAllowedHosts.isEmpty()) "All audio blocked by default" else "${audioAllowedHosts.size} site(s) unblocked",
+                            icon = Icons.Outlined.VolumeUp,
                             iconColor = MaterialTheme.colorScheme.primary
                         )
 
-                        if (audioMutedHosts.isNotEmpty()) {
+                        if (audioAllowedHosts.isNotEmpty()) {
                             @OptIn(ExperimentalLayoutApi::class)
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1203,7 +1203,7 @@ fun SettingsScreen(
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 6.dp)
                             ) {
-                                audioMutedHosts.forEach { host ->
+                                audioAllowedHosts.forEach { host ->
                                     InputChip(
                                         selected = false,
                                         onClick = {},
@@ -1211,13 +1211,13 @@ fun SettingsScreen(
                                         trailingIcon = {
                                             Icon(
                                                 imageVector = Icons.Default.Close,
-                                                contentDescription = "Remove $host",
+                                                contentDescription = "Block $host",
                                                 modifier = Modifier
                                                     .size(16.dp)
                                                     .clickable {
-                                                        val updated = audioMutedHosts - host
-                                                        audioMutedHosts = updated
-                                                        settingsManager.updateSettings { it.audioMutedHosts = updated }
+                                                        val updated = audioAllowedHosts - host
+                                                        audioAllowedHosts = updated
+                                                        settingsManager.updateSettings { it.audioAllowedHosts = updated }
                                                     }
                                             )
                                         }

@@ -34,7 +34,7 @@ data class AppSettings(
     var preferredPrices: Set<String> = emptySet(),
     var preferredPrivacy: Set<String> = emptySet(),
     var preferredLoginRequired: Boolean? = null,
-    var audioMutedHosts: Set<String> = emptySet(),
-    var videoAllowedHosts: Set<String> = setOf("instagram.com"),
+    var audioAllowedHosts: Set<String> = emptySet(),
+    var videoAllowedHosts: Set<String> = emptySet(),
     var videoAllowOnWifi: Boolean = false
 )

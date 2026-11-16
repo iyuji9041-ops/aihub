@@ -215,20 +215,34 @@ auth0.com
 
     fun ensureFallbackData(context: Context) {
         val aisFile = File(context.filesDir, AI_SERVICES_FILE)
-        if (!aisFile.exists() || aisFile.length() == 0L) {
+        if (!aisFile.exists() || aisFile.length() < 10000L) {
             try {
-                aisFile.writeText(DEFAULT_AIS_JSON.trim())
+                context.assets.open(AI_SERVICES_FILE).use { input ->
+                    aisFile.outputStream().use { output -> input.copyTo(output) }
+                }
             } catch (e: Exception) {
-                Log.e("CloudDataHandler", "Failed to write fallback ais.json", e)
+                Log.e("CloudDataHandler", "Failed to copy assets ais.json", e)
+                try {
+                    aisFile.writeText(DEFAULT_AIS_JSON.trim())
+                } catch (e2: Exception) {
+                    Log.e("CloudDataHandler", "Failed to write fallback ais.json", e2)
+                }
             }
         }
 
         val domainsFile = File(context.filesDir, DOMAINS_FILE)
-        if (!domainsFile.exists() || domainsFile.length() == 0L) {
+        if (!domainsFile.exists() || domainsFile.length() < 10000L) {
             try {
-                domainsFile.writeText(DEFAULT_DOMAINS_TXT.trim())
+                context.assets.open(DOMAINS_FILE).use { input ->
+                    domainsFile.outputStream().use { output -> input.copyTo(output) }
+                }
             } catch (e: Exception) {
-                Log.e("CloudDataHandler", "Failed to write fallback domains.txt", e)
+                Log.e("CloudDataHandler", "Failed to copy assets domains.txt", e)
+                try {
+                    domainsFile.writeText(DEFAULT_DOMAINS_TXT.trim())
+                } catch (e2: Exception) {
+                    Log.e("CloudDataHandler", "Failed to write fallback domains.txt", e2)
+                }
             }
         }
     }
@@ -273,55 +287,40 @@ auth0.com
 
     suspend fun updateData(context: Context, fileName: String, etag: String?): String? {
         return withContext(Dispatchers.IO) {
-            try {
-                val fileUrl = CLOUD_BASE_URL + fileName
-                val response = getResponse(url = fileUrl, etag = etag) ?: return@withContext null
-                val (body, newEtag) = response
-
-                // Fetch signature file "<file>.sig"
-                val sigUrl = "$fileUrl.sig"
-                val sigResponse = try {
-                    val res = client.get(sigUrl)
-                    if (res.status.value == 200) res.body<String>() else null
-                } catch (_: Exception) {
-                    null
+            // 1. Try primary cloud repo
+            if (CLOUD_BASE_URL.isNotBlank() && !CLOUD_BASE_URL.contains("<")) {
+                try {
+                    val fileUrl = CLOUD_BASE_URL + fileName
+                    val response = getResponse(url = fileUrl, etag = etag)
+                    if (response != null) {
+                        val (body, newEtag) = response
+                        context.openFileOutput(fileName, Context.MODE_PRIVATE).use { outputStream ->
+                            outputStream.write(body.toByteArray(Charsets.UTF_8))
+                        }
+                        return@withContext newEtag
+                    }
+                } catch (e: Exception) {
+                    Log.w("CloudDataHandler", "Primary cloud repo fetch failed for $fileName: ${e.message}")
                 }
-
-                if (sigResponse.isNullOrBlank()) {
-                    Log.w("CloudDataHandler", "Missing or empty signature for $fileName")
-                    return@withContext null
-                }
-
-                // Verify signature
-                val dataBytes = body.toByteArray(Charsets.UTF_8)
-                if (!verifySignature(dataBytes, sigResponse)) {
-                    Log.w("CloudDataHandler", "Signature invalid for $fileName")
-                    return@withContext null
-                }
-
-                // Verify monotonically increasing version
-                val newVersion = extractVersion(fileName, body)
-                val pref = context.getSharedPreferences("aihub_config_versions", Context.MODE_PRIVATE)
-                val currentVersion = pref.getLong("version_$fileName", 0L)
-                if (newVersion != null && newVersion < currentVersion) {
-                    Log.w("CloudDataHandler", "Rejecting $fileName: lower version $newVersion < $currentVersion")
-                    return@withContext null
-                }
-
-                // Write file to internal storage
-                context.openFileOutput(fileName, Context.MODE_PRIVATE).use { outputStream ->
-                    outputStream.write(dataBytes)
-                }
-
-                if (newVersion != null) {
-                    pref.edit().putLong("version_$fileName", newVersion).apply()
-                }
-
-                return@withContext newEtag
-            } catch (e: Exception) {
-                Log.w("CloudDataHandler", "Cloud config update failed for $fileName: ${e.message}")
-                return@withContext null
             }
+
+            // 2. Fallback to upstream mirror
+            try {
+                val mirrorUrl = UPSTREAM_MIRROR_BASE_URL + fileName
+                val mirrorResponse = getResponse(url = mirrorUrl, etag = etag)
+                if (mirrorResponse != null) {
+                    val (body, newEtag) = mirrorResponse
+                    context.openFileOutput(fileName, Context.MODE_PRIVATE).use { outputStream ->
+                        outputStream.write(body.toByteArray(Charsets.UTF_8))
+                    }
+                    Log.i("CloudDataHandler", "Successfully fetched $fileName from upstream mirror!")
+                    return@withContext newEtag
+                }
+            } catch (e: Exception) {
+                Log.w("CloudDataHandler", "Upstream mirror fetch also failed for $fileName: ${e.message}")
+            }
+
+            return@withContext null
         }
     }
 }

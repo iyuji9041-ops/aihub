@@ -198,6 +198,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun loadAllData(): Pair<List<AiService>, HashSet<String>> {
+        CloudDataHandler.ensureFallbackData(this)
+
         val domainsFile = File(filesDir, DOMAINS_FILE)
         var domainsSet = if (domainsFile.exists()) {
             domainsFile.bufferedReader().useLines { lines ->
@@ -207,11 +209,7 @@ class MainActivity : ComponentActivity() {
             HashSet()
         }
 
-        var services = if (File(filesDir, AI_SERVICES_FILE).exists()) {
-            loadServices(this)
-        } else {
-            emptyList()
-        }
+        var services = loadServices(this)
 
         if (domainsSet.isEmpty() || services.size <= 12) {
             try {
@@ -228,35 +226,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
             services = loadServices(this)
-            if (services.size > 12) {
-                settingsManager.updateSettings { current ->
-                    current.enabledServices = services.map { it.name }.toSet()
-                    current.serviceOrder = services.map { it.name }
-                }
-            }
         }
 
-        val extraPref = getSharedPreferences("aihub_settings", MODE_PRIVATE)
-        if (!extraPref.getBoolean("extra_services_v1", false)) {
-            val extraServiceNames: List<String> = try {
-                val jsonString = assets.open("extra_services.json").bufferedReader().use { it.readText() }
-                val type = object : com.google.gson.reflect.TypeToken<Map<String, List<Map<String, Any>>>>() {}.type
-                val map: Map<String, List<Map<String, Any>>>? = com.google.gson.Gson().fromJson(jsonString, type)
-                map?.values?.flatMap { list ->
-                    list.mapNotNull { it["name"]?.toString() }
-                } ?: emptyList()
-            } catch (_: Exception) {
-                emptyList()
-            }
-
-            if (extraServiceNames.isNotEmpty()) {
-                settingsManager.updateSettings { current ->
-                    val updatedEnabled = (current.enabledServices + extraServiceNames).toSet()
-                    val updatedOrder = (current.serviceOrder + extraServiceNames).distinct()
-                    current.enabledServices = updatedEnabled
-                    current.serviceOrder = updatedOrder
-                }
-                extraPref.edit().putBoolean("extra_services_v1", true).apply()
+        // Ensure all available AI services (200+) are enabled
+        val allServiceNames = services.map { it.name }
+        val currentEnabled = settingsManager.loadEnabledServices()
+        if (currentEnabled.size < allServiceNames.size) {
+            settingsManager.updateSettings { current ->
+                current.enabledServices = (current.enabledServices + allServiceNames).toSet()
+                current.serviceOrder = (current.serviceOrder + allServiceNames).distinct()
             }
         }
 

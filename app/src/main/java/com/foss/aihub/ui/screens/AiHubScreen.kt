@@ -110,7 +110,6 @@ import com.foss.aihub.ui.webview.updateWebViewSettings
 import com.foss.aihub.ui.components.frostedBorder
 import com.foss.aihub.utils.AppUpdateInfo
 import com.foss.aihub.utils.CloudDataHandler
-import com.foss.aihub.utils.SUPPORT_EMAIL
 import com.foss.aihub.utils.buildPromptInjectionJs
 import com.foss.aihub.utils.checkForUpdate
 import com.foss.aihub.utils.copyLinkToClipboard
@@ -822,16 +821,16 @@ fun AiHubApp(
                         ""
                     }
                 }
-                val isCurrentAudioMuted = remember(currentHost, settings.audioMutedHosts) {
-                    currentHost.isNotBlank() && settings.audioMutedHosts.any { h ->
+                val isCurrentAudioAllowed = remember(currentHost, settings.audioAllowedHosts) {
+                    currentHost.isNotBlank() && settings.audioAllowedHosts.any { h ->
                         val hl = h.trim().lowercase()
-                        currentHost == hl || currentHost.endsWith(".$hl")
+                        currentHost == hl || currentHost.endsWith(".$hl") || hl.endsWith(".$currentHost")
                     }
                 }
                 val isCurrentVideoAllowed = remember(currentHost, settings.videoAllowedHosts) {
                     currentHost.isNotBlank() && settings.videoAllowedHosts.any { h ->
                         val hl = h.trim().lowercase()
-                        currentHost == hl || currentHost.endsWith(".$hl")
+                        currentHost == hl || currentHost.endsWith(".$hl") || hl.endsWith(".$currentHost")
                     }
                 }
 
@@ -874,51 +873,41 @@ fun AiHubApp(
                         applySettingsToAllWebViews(true)
                     },
                     isDesktopMode = settings.desktopView,
-                    isAudioMuted = isCurrentAudioMuted,
-                    onToggleAudioMute = {
+                    isAudioAllowed = isCurrentAudioAllowed,
+                    onToggleAudio = {
                         if (currentHost.isNotBlank()) {
-                            val currentlyMuted = isCurrentAudioMuted
-                            val newSet = if (currentlyMuted) {
-                                settings.audioMutedHosts.filterNot { h ->
+                            val currentlyAllowed = isCurrentAudioAllowed
+                            val newAllowed = !currentlyAllowed
+                            val newSet = if (currentlyAllowed) {
+                                settings.audioAllowedHosts.filterNot { h ->
                                     val hl = h.trim().lowercase()
                                     currentHost == hl || currentHost.endsWith(".$hl") || hl.endsWith(".$currentHost")
                                 }.toSet()
                             } else {
-                                settings.audioMutedHosts + currentHost
+                                settings.audioAllowedHosts + currentHost
                             }
-                            settingsManager.updateSettings { it.audioMutedHosts = newSet }
+                            settingsManager.updateSettings { it.audioAllowedHosts = newSet }
 
                             val currentWebView = webViews[selectedService.name]
-                            if (!currentlyMuted) {
+                            if (!newAllowed) {
                                 val muteJs = "window.__aihubMuteAudio = true; document.querySelectorAll('video,audio').forEach(m=>{m.muted=true;m.volume=0}); window.speechSynthesis&&speechSynthesis.cancel();"
                                 currentWebView?.evaluateJavascript(muteJs, null)
                                 scope.launch {
                                     snackbarHostState.currentSnackbarData?.dismiss()
                                     snackbarHostState.showSnackbar(
-                                        message = "Audio muted for $currentHost",
+                                        message = "Audio blocked for $currentHost",
                                         duration = SnackbarDuration.Short
                                     )
                                 }
                             } else {
-                                currentWebView?.evaluateJavascript("window.__aihubMuteAudio = false;", null)
+                                val unmuteJs = "window.__aihubMuteAudio = false; document.querySelectorAll('video,audio').forEach(m=>{m.muted=false;m.volume=1});"
+                                currentWebView?.evaluateJavascript(unmuteJs, null)
                                 scope.launch {
                                     snackbarHostState.currentSnackbarData?.dismiss()
-                                    val result = snackbarHostState.showSnackbar(
-                                        message = "Reload to apply",
-                                        actionLabel = "Reload",
-                                        duration = SnackbarDuration.Long
+                                    snackbarHostState.showSnackbar(
+                                        message = "Audio unblocked for $currentHost",
+                                        duration = SnackbarDuration.Short
                                     )
-                                    if (result == SnackbarResult.ActionPerformed) {
-                                        currentWebView?.reload()
-                                        updateServiceState(selectedService.name) { state ->
-                                            state.copy(
-                                                webViewState = WebViewState.LOADING,
-                                                isLoading = true,
-                                                error = null,
-                                                progress = 0
-                                            )
-                                        }
-                                    }
                                 }
                             }
                         }
@@ -940,26 +929,17 @@ fun AiHubApp(
 
                             val currentWebView = webViews[selectedService.name]
                             val blockVideo = !newAllowed
-                            currentWebView?.evaluateJavascript("window.__aihubBlockVideo = $blockVideo;", null)
+                            currentWebView?.evaluateJavascript(
+                                "window.__aihubBlockVideo = $blockVideo; if($blockVideo){document.querySelectorAll('video').forEach(v=>v.pause());}",
+                                null
+                            )
                             currentWebView?.settings?.mediaPlaybackRequiresUserGesture = !newAllowed
                             scope.launch {
                                 snackbarHostState.currentSnackbarData?.dismiss()
-                                val result = snackbarHostState.showSnackbar(
-                                    message = "Reload to apply",
-                                    actionLabel = "Reload",
-                                    duration = SnackbarDuration.Long
+                                snackbarHostState.showSnackbar(
+                                    message = if (newAllowed) "Video unblocked for $currentHost" else "Video blocked for $currentHost",
+                                    duration = SnackbarDuration.Short
                                 )
-                                if (result == SnackbarResult.ActionPerformed) {
-                                    currentWebView?.reload()
-                                    updateServiceState(selectedService.name) { state ->
-                                        state.copy(
-                                            webViewState = WebViewState.LOADING,
-                                            isLoading = true,
-                                            error = null,
-                                            progress = 0
-                                        )
-                                    }
-                                }
                             }
                         }
                     },
@@ -1679,18 +1659,8 @@ fun AiHubApp(
                     onServicesUpdated(updated)
                 }
             },
-            onSubmit = { content, method ->
-                val title = Uri.encode("Request for new AI").replace("+", "%20")
-                val body = Uri.encode(content).replace("+", "%20")
-
-                if (method == "github") {
-                    openInExternalBrowser(context, content)
-                } else {
-                    val mailtoUri = "mailto:$SUPPORT_EMAIL?subject=$title&body=$body".toUri()
-
-                    val emailIntent = Intent(Intent.ACTION_VIEW, mailtoUri)
-                    context.startActivity(Intent.createChooser(emailIntent, "Request new AI"))
-                }
+            onSubmit = { content, _ ->
+                openInExternalBrowser(context, content)
             },
         )
     }

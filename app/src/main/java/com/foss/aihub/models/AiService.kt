@@ -48,33 +48,33 @@ data class AiService(
 suspend fun loadServices(context: Context): List<AiService> = withContext(Dispatchers.IO) {
     val jsonParser = Json { ignoreUnknownKeys = true }
     val file = File(context.filesDir, "ais.json")
-    val baseServices: List<AiService> = if (file.exists()) {
-        try {
-            val jsonString = file.readText()
-            val rawMap = jsonParser.decodeFromString<Map<String, List<RawAiService>>>(jsonString)
-            rawMap.flatMap { (categoryName, rawServices) ->
-                rawServices.map { raw ->
-                    val resolvedUrl = when {
-                        raw.name.equals("Grok", ignoreCase = true) || raw.website.trimEnd('/') == "https://x.ai" || raw.website.trimEnd('/') == "http://x.ai" -> "https://grok.com"
-                        raw.name.equals("Groq", ignoreCase = true) || raw.website.contains("groq.com") -> "https://chat.groq.com"
-                        else -> raw.website
-                    }
-                    AiService(
-                        name = raw.name,
-                        url = resolvedUrl,
-                        category = categoryName,
-                        pricing = raw.pricing,
-                        privacy = raw.privacy,
-                        loginRequired = raw.login_required,
-                        bestFor = raw.best_for,
-                        accentColor = generateAccentColorFromName(raw.name)
-                    )
-                }
-            }
-        } catch (_: Exception) {
-            emptyList()
+    val baseServices: List<AiService> = try {
+        val jsonString = if (file.exists() && file.length() >= 10000L) {
+            file.readText()
+        } else {
+            context.assets.open("ais.json").bufferedReader().use { it.readText() }
         }
-    } else {
+        val rawMap = jsonParser.decodeFromString<Map<String, List<RawAiService>>>(jsonString)
+        rawMap.flatMap { (categoryName, rawServices) ->
+            rawServices.map { raw ->
+                val resolvedUrl = when {
+                    raw.name.equals("Grok", ignoreCase = true) || raw.website.trimEnd('/') == "https://x.ai" || raw.website.trimEnd('/') == "http://x.ai" -> "https://grok.com"
+                    raw.name.equals("Groq", ignoreCase = true) || raw.website.contains("groq.com") -> "https://chat.groq.com"
+                    else -> raw.website
+                }
+                AiService(
+                    name = raw.name,
+                    url = resolvedUrl,
+                    category = categoryName,
+                    pricing = raw.pricing,
+                    privacy = raw.privacy,
+                    loginRequired = raw.login_required,
+                    bestFor = raw.best_for,
+                    accentColor = generateAccentColorFromName(raw.name)
+                )
+            }
+        }
+    } catch (_: Exception) {
         emptyList()
     }
 

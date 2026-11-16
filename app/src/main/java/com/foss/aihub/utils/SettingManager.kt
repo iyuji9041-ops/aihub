@@ -91,7 +91,7 @@ class SettingsManager(context: Context) {
         private const val KEY_CUSTOM_AI_SERVICES = "customAiServices"
         private const val KEY_SAVED_PROMPTS = "savedPrompts"
 
-        private const val KEY_AUDIO_MUTED_HOSTS = "audioMutedHosts"
+        private const val KEY_AUDIO_ALLOWED_HOSTS = "audioAllowedHosts"
         private const val KEY_VIDEO_ALLOWED_HOSTS = "videoAllowedHosts"
         private const val KEY_VIDEO_ALLOW_ON_WIFI = "videoAllowOnWifi"
     }
@@ -163,10 +163,10 @@ class SettingsManager(context: Context) {
             ?: emptySet(),
         preferredLoginRequired = sharedPref.getString(KEY_PREFERRED_LOGIN_REQUIRED, null)
             ?.toBooleanStrictOrNull(),
-        audioMutedHosts = sharedPref.safeGetStringSet(KEY_AUDIO_MUTED_HOSTS, emptySet())
+        audioAllowedHosts = sharedPref.safeGetStringSet(KEY_AUDIO_ALLOWED_HOSTS, emptySet())
             ?: emptySet(),
-        videoAllowedHosts = sharedPref.safeGetStringSet(KEY_VIDEO_ALLOWED_HOSTS, setOf("instagram.com"))
-            ?: setOf("instagram.com"),
+        videoAllowedHosts = sharedPref.safeGetStringSet(KEY_VIDEO_ALLOWED_HOSTS, emptySet())
+            ?: emptySet(),
         videoAllowOnWifi = sharedPref.getBoolean(KEY_VIDEO_ALLOW_ON_WIFI, false)
     )
 
@@ -205,7 +205,7 @@ class SettingsManager(context: Context) {
             putStringSet(KEY_PREFERRED_PRICES, settings.preferredPrices)
             putStringSet(KEY_PREFERRED_PRIVACY, settings.preferredPrivacy)
             putString(KEY_PREFERRED_LOGIN_REQUIRED, settings.preferredLoginRequired?.toString())
-            putStringSet(KEY_AUDIO_MUTED_HOSTS, settings.audioMutedHosts)
+            putStringSet(KEY_AUDIO_ALLOWED_HOSTS, settings.audioAllowedHosts)
             putStringSet(KEY_VIDEO_ALLOWED_HOSTS, settings.videoAllowedHosts)
             putBoolean(KEY_VIDEO_ALLOW_ON_WIFI, settings.videoAllowOnWifi)
         }

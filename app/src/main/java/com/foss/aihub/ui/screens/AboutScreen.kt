@@ -31,7 +31,6 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Code
-import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.material.icons.rounded.Share
@@ -69,7 +68,6 @@ import com.foss.aihub.BuildConfig
 import com.foss.aihub.R
 import com.foss.aihub.utils.GITHUB_REPO_NAME
 import com.foss.aihub.utils.GITHUB_USER_NAME
-import com.foss.aihub.utils.SUPPORT_EMAIL
 import java.time.Year
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -266,36 +264,6 @@ fun AboutScreen(context: Context, onBack: () -> Unit) {
                             title = stringResource(R.string.action_privacy_policy),
                             description = stringResource(R.string.label_privacy_policy_summary),
                             onClick = { uriHandler.openUri(privacyUrl) })
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 20.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                        )
-                        ListItemWithIcon(
-                            icon = Icons.Outlined.Email,
-                            title = stringResource(R.string.label_feedback_support),
-                            description = SUPPORT_EMAIL,
-                            onClick = {
-                                val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
-                                    data = "mailto:$SUPPORT_EMAIL".toUri()
-                                    putExtra(Intent.EXTRA_SUBJECT, "[$appName] Feedback / Issue")
-                                    putExtra(
-                                        Intent.EXTRA_TEXT, """
-                                            
-                                            ---
-                                            App: $appName
-                                            Version: $version
-                                            Device: ${android.os.Build.MODEL}
-                                            Android: ${android.os.Build.VERSION.RELEASE}
-                                        """.trimIndent()
-                                    )
-                                }
-                                context.startActivity(
-                                    Intent.createChooser(
-                                        emailIntent, "Send email via"
-                                    )
-                                )
-                            },
-                        )
                     }
                 }
             }
