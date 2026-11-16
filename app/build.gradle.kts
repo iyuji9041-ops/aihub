@@ -43,13 +43,13 @@ android {
         includeInBundle = false
     }
 
-    val keystoreFile = System.getenv("KEYSTORE_FILE")?.let { file(it) }
+    val envKeystoreFile = System.getenv("KEYSTORE_FILE")?.let { file(it) }
         ?: file("$rootDir/keystore.jks").takeIf { it.exists() }
         ?: file("$rootDir/../../keystore.jks").takeIf { it.exists() }
 
-    val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
-    val keyAlias = System.getenv("KEY_ALIAS")
-    val keyPassword = System.getenv("KEY_PASSWORD")
+    val envKeystorePassword = System.getenv("KEYSTORE_PASSWORD")
+    val envKeyAlias = System.getenv("KEY_ALIAS")
+    val envKeyPassword = System.getenv("KEY_PASSWORD")
 
     val keystorePropertiesFile = file("$rootDir/keystore.properties").takeIf { it.exists() }
         ?: file("$rootDir/local.properties").takeIf { it.exists() }
@@ -61,20 +61,20 @@ android {
         println("Keystore properties loaded successfully.")
     }
 
-    val finalStoreFile = keystoreFile ?: keystoreProperties.getProperty("STORE_FILE")?.let { file(it) }
-    val finalStorePassword = keystorePassword ?: keystoreProperties.getProperty("KEYSTORE_PASSWORD")
-    val finalKeyAlias = keyAlias ?: keystoreProperties.getProperty("KEY_ALIAS")
-    val finalKeyPassword = keyPassword ?: keystoreProperties.getProperty("KEY_PASSWORD")
+    val finalStoreFile = envKeystoreFile ?: keystoreProperties.getProperty("STORE_FILE")?.let { file(it) }
+    val finalStorePassword = envKeystorePassword ?: keystoreProperties.getProperty("KEYSTORE_PASSWORD")
+    val finalKeyAlias = envKeyAlias ?: keystoreProperties.getProperty("KEY_ALIAS")
+    val finalKeyPassword = envKeyPassword ?: keystoreProperties.getProperty("KEY_PASSWORD")
 
     val canSignRelease = finalStoreFile != null && finalStoreFile.exists() && !finalStorePassword.isNullOrBlank()
 
     signingConfigs {
         if (canSignRelease) {
             create("release") {
-                storeFile = finalStoreFile
-                storePassword = finalStorePassword
-                keyAlias = finalKeyAlias ?: ""
-                keyPassword = finalKeyPassword ?: finalStorePassword
+                this.storeFile = finalStoreFile
+                this.storePassword = finalStorePassword
+                this.keyAlias = finalKeyAlias ?: ""
+                this.keyPassword = finalKeyPassword ?: finalStorePassword
             }
         }
     }
