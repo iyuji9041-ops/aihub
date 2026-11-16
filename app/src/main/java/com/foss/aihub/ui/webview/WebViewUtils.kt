@@ -118,12 +118,14 @@ fun createWebViewForService(
         }
     }
 
+    val serviceHost = try { Uri.parse(service.url).host?.lowercase() } catch (_: Exception) { null }
+    val blobInterface = BlobDownloadInterface(context, serviceHost)
+    val shareInterface = ShareInterface(context, serviceHost)
+
     return WebView(context).apply {
-        addJavascriptInterface(BlobDownloadInterface(context), "AndroidBlobHandler")
-        addJavascriptInterface(ShareInterface(context), "AndroidWebShare")
-        addJavascriptInterface(
-            BlobDownloadInterface(context), "BlobDownloader"
-        )
+        addJavascriptInterface(blobInterface, "AndroidBlobHandler")
+        addJavascriptInterface(shareInterface, "AndroidWebShare")
+        addJavascriptInterface(blobInterface, "BlobDownloader")
 
         setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
             handleDownload(this@apply, url, userAgent, contentDisposition, mimeType)
@@ -139,6 +141,8 @@ fun createWebViewForService(
             onLoadingStateChange = onLoadingStateChange,
             service = service,
             onError = onError,
+            blobInterface = blobInterface,
+            shareInterface = shareInterface
         )
 
         webChromeClient = CustomWebChromeClient(
@@ -275,7 +279,7 @@ fun updateWebViewSettings(
         setSupportMultipleWindows(true)
         loadWithOverviewMode = true
         useWideViewPort = true
-        allowFileAccess = true
+        allowFileAccess = false
         allowContentAccess = true
         mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         cacheMode = WebSettings.LOAD_DEFAULT

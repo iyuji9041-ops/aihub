@@ -4,13 +4,30 @@ import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.webkit.JavascriptInterface
 
-class ShareInterface(private val context: Context) {
+class ShareInterface(
+    private val context: Context,
+    private val serviceHost: String? = null
+) {
+    @Volatile
+    var currentTopLevelHost: String? = null
+
+    private fun isAuthorized(): Boolean {
+        val top = currentTopLevelHost?.lowercase() ?: return false
+        val sHost = serviceHost?.lowercase() ?: return false
+        return top == sHost || top.endsWith(".$sHost")
+    }
+
     private val mainHandler = Handler(Looper.getMainLooper())
 
     @JavascriptInterface
     fun share(title: String, text: String, url: String) {
+        if (!isAuthorized()) {
+            Log.w("ShareInterface", "Blocked unauthorized call from top host: $currentTopLevelHost, expected: $serviceHost")
+            return
+        }
         mainHandler.post {
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"

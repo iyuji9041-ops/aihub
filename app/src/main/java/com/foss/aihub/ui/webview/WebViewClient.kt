@@ -23,12 +23,17 @@ class CustomWebViewClient(
     private val onProgressUpdate: (Int) -> Unit,
     private val onLoadingStateChange: (Boolean) -> Unit,
     private val service: AiService,
-    private val onError: (Int, String) -> Unit
+    private val onError: (Int, String) -> Unit,
+    private val blobInterface: BlobDownloadInterface? = null,
+    private val shareInterface: ShareInterface? = null
 ) : WebViewClient() {
     private var hasErrorOccurred = false
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
+        val host = try { url?.let { Uri.parse(it).host?.lowercase() } } catch (_: Exception) { null }
+        blobInterface?.currentTopLevelHost = host
+        shareInterface?.currentTopLevelHost = host
         hasErrorOccurred = false
         onLoadingStateChange(true)
         onProgressUpdate(0)

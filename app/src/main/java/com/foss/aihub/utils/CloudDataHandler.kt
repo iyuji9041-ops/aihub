@@ -12,6 +12,10 @@ import io.ktor.client.request.head
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.security.KeyFactory
+import java.security.Signature
+import java.security.spec.X509EncodedKeySpec
+import java.util.Base64
 
 object CloudDataHandler {
     private val client = HttpClient(OkHttp) {
@@ -24,6 +28,7 @@ object CloudDataHandler {
 
     private const val DEFAULT_AIS_JSON = """
 {
+  "version": 1,
   "General": [
     {
       "name": "ChatGPT",
@@ -123,7 +128,8 @@ object CloudDataHandler {
 }
 """
 
-    private const val DEFAULT_DOMAINS_TXT = """chatgpt.com
+    private const val DEFAULT_DOMAINS_TXT = """# version: 1
+chatgpt.com
 openai.com
 claude.ai
 anthropic.com
@@ -142,6 +148,43 @@ qwenlm.ai
 challenges.cloudflare.com
 auth0.com
 """
+
+    fun verifySignature(data: ByteArray, signatureBase64: String): Boolean {
+        return try {
+            val keyBytes = Base64.getDecoder().decode(CONFIG_PUBLIC_KEY_BASE64.trim())
+            val keySpec = X509EncodedKeySpec(keyBytes)
+            val keyFactory = KeyFactory.getInstance("EC")
+            val publicKey = keyFactory.generatePublic(keySpec)
+
+            val sigBytes = Base64.getDecoder().decode(signatureBase64.trim())
+            val verifier = Signature.getInstance("SHA256withECDSA")
+            verifier.initVerify(publicKey)
+            verifier.update(data)
+            verifier.verify(sigBytes)
+        } catch (e: Exception) {
+            Log.w("CloudDataHandler", "Signature verification failed: ${e.message}")
+            false
+        }
+    }
+
+    private fun extractVersion(fileName: String, content: String): Long? {
+        if (fileName.endsWith(".json")) {
+            try {
+                val obj = org.json.JSONObject(content)
+                if (obj.has("version")) return obj.getLong("version")
+            } catch (_: Exception) {}
+        }
+        for (line in content.lineSequence().take(5)) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("# version:", ignoreCase = true)) {
+                return trimmed.substringAfter(":").trim().toLongOrNull()
+            }
+            if (trimmed.startsWith("# version=", ignoreCase = true)) {
+                return trimmed.substringAfter("=").trim().toLongOrNull()
+            }
+        }
+        return null
+    }
 
     suspend fun getEtag(url: String): String? {
         return try {
@@ -230,36 +273,55 @@ auth0.com
 
     suspend fun updateData(context: Context, fileName: String, etag: String?): String? {
         return withContext(Dispatchers.IO) {
-            // 1. Try primary cloud repo
             try {
-                val response = getResponse(url = CLOUD_BASE_URL + fileName, etag = etag)
-                if (response != null) {
-                    val (body, newEtag) = response
-                    context.openFileOutput(fileName, Context.MODE_PRIVATE).use { outputStream ->
-                        outputStream.write(body.toByteArray())
-                    }
-                    return@withContext newEtag
-                }
-            } catch (e: Exception) {
-                Log.w("CloudDataHandler", "Primary cloud repo fetch failed for $fileName: ${e.message}, falling back to upstream mirror...")
-            }
+                val fileUrl = CLOUD_BASE_URL + fileName
+                val response = getResponse(url = fileUrl, etag = etag) ?: return@withContext null
+                val (body, newEtag) = response
 
-            // 2. Fallback immediately to upstream mirror if primary 404s/fails
-            try {
-                val mirrorResponse = getResponse(url = UPSTREAM_MIRROR_BASE_URL + fileName, etag = etag)
-                if (mirrorResponse != null) {
-                    val (body, newEtag) = mirrorResponse
-                    context.openFileOutput(fileName, Context.MODE_PRIVATE).use { outputStream ->
-                        outputStream.write(body.toByteArray())
-                    }
-                    Log.i("CloudDataHandler", "Successfully fetched $fileName from upstream mirror!")
-                    return@withContext newEtag
+                // Fetch signature file "<file>.sig"
+                val sigUrl = "$fileUrl.sig"
+                val sigResponse = try {
+                    val res = client.get(sigUrl)
+                    if (res.status.value == 200) res.body<String>() else null
+                } catch (_: Exception) {
+                    null
                 }
-            } catch (e: Exception) {
-                Log.w("CloudDataHandler", "Upstream mirror fetch also failed for $fileName: ${e.message}")
-            }
 
-            return@withContext null
+                if (sigResponse.isNullOrBlank()) {
+                    Log.w("CloudDataHandler", "Missing or empty signature for $fileName")
+                    return@withContext null
+                }
+
+                // Verify signature
+                val dataBytes = body.toByteArray(Charsets.UTF_8)
+                if (!verifySignature(dataBytes, sigResponse)) {
+                    Log.w("CloudDataHandler", "Signature invalid for $fileName")
+                    return@withContext null
+                }
+
+                // Verify monotonically increasing version
+                val newVersion = extractVersion(fileName, body)
+                val pref = context.getSharedPreferences("aihub_config_versions", Context.MODE_PRIVATE)
+                val currentVersion = pref.getLong("version_$fileName", 0L)
+                if (newVersion != null && newVersion < currentVersion) {
+                    Log.w("CloudDataHandler", "Rejecting $fileName: lower version $newVersion < $currentVersion")
+                    return@withContext null
+                }
+
+                // Write file to internal storage
+                context.openFileOutput(fileName, Context.MODE_PRIVATE).use { outputStream ->
+                    outputStream.write(dataBytes)
+                }
+
+                if (newVersion != null) {
+                    pref.edit().putLong("version_$fileName", newVersion).apply()
+                }
+
+                return@withContext newEtag
+            } catch (e: Exception) {
+                Log.w("CloudDataHandler", "Cloud config update failed for $fileName: ${e.message}")
+                return@withContext null
+            }
         }
     }
 }

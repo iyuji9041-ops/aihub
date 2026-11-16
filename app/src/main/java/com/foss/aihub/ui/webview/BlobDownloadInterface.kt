@@ -19,12 +19,28 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Base64
 
-class BlobDownloadInterface(private val context: Context) {
+class BlobDownloadInterface(
+    private val context: Context,
+    private val serviceHost: String? = null
+) {
+    @Volatile
+    var currentTopLevelHost: String? = null
+
+    private fun isAuthorized(): Boolean {
+        val top = currentTopLevelHost?.lowercase() ?: return false
+        val sHost = serviceHost?.lowercase() ?: return false
+        return top == sHost || top.endsWith(".$sHost")
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     @RequiresApi(Build.VERSION_CODES.Q)
     @JavascriptInterface
     fun saveBase64File(base64: String, fileName: String, mimeType: String) {
+        if (!isAuthorized()) {
+            Log.w("BlobDownload", "Blocked unauthorized call from top host: $currentTopLevelHost, expected: $serviceHost")
+            return
+        }
         Log.d(
             "BlobDownload",
             "saveBase64File called - fileName: $fileName, mimeType: $mimeType, base64 length: ${base64.length}"
@@ -61,6 +77,7 @@ class BlobDownloadInterface(private val context: Context) {
 
     @JavascriptInterface
     fun downloadFailed(message: String) {
+        if (!isAuthorized()) return
         Log.e("BlobDownload", "Download failed: $message")
         scope.launch(Dispatchers.Main) {
             Toast.makeText(

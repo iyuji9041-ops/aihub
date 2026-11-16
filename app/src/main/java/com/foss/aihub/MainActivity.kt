@@ -201,7 +201,7 @@ class MainActivity : ComponentActivity() {
         val domainsFile = File(filesDir, DOMAINS_FILE)
         var domainsSet = if (domainsFile.exists()) {
             domainsFile.bufferedReader().useLines { lines ->
-                lines.map { it.trim() }.filter { it.isNotBlank() }.toHashSet()
+                lines.map { it.trim() }.filter { it.isNotBlank() && !it.startsWith("#") }.toHashSet()
             }
         } else {
             HashSet()
@@ -224,7 +224,7 @@ class MainActivity : ComponentActivity() {
 
             if (domainsFile.exists()) {
                 domainsSet = domainsFile.bufferedReader().useLines { lines ->
-                    lines.map { it.trim() }.filter { it.isNotBlank() }.toHashSet()
+                    lines.map { it.trim() }.filter { it.isNotBlank() && !it.startsWith("#") }.toHashSet()
                 }
             }
             services = loadServices(this)
