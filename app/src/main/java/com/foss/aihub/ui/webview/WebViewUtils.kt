@@ -3,6 +3,7 @@ package com.foss.aihub.ui.webview
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -271,7 +272,7 @@ fun updateWebViewSettings(
         } catch (_: Exception) { null }
         val isAllowedHost = currentHost != null && settings.videoAllowedHosts.any { h ->
             val hl = h.trim().lowercase()
-            currentHost == hl || currentHost.endsWith(".$hl")
+            currentHost == hl || currentHost.endsWith(".$hl", false)
         }
         mediaPlaybackRequiresUserGesture = !isAllowedHost
 
