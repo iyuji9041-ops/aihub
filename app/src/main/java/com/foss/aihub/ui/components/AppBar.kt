@@ -133,8 +133,8 @@ fun AiHubAppBar(
     isDesktopMode: Boolean = false,
     onToggleAudioMute: () -> Unit = {},
     isAudioMuted: Boolean = false,
-    onToggleVideoBlock: () -> Unit = {},
-    isVideoBlocked: Boolean = false,
+    onToggleVideo: () -> Unit = {},
+    isVideoAllowed: Boolean = false,
     onToggleImmersiveMode: () -> Unit = {},
     isImmersiveMode: Boolean = false,
     onNextService: () -> Unit = {},
@@ -297,16 +297,16 @@ fun AiHubAppBar(
 
                 // 4. Video button
                 TooltipIconButton(
-                    tooltipText = if (isVideoBlocked) "Unblock Videos" else "Block Videos",
-                    onClick = onToggleVideoBlock,
+                    tooltipText = if (isVideoAllowed) "Disallow Videos" else "Allow Videos",
+                    onClick = onToggleVideo,
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
                 ) {
                     Icon(
-                        imageVector = if (isVideoBlocked) Icons.Outlined.VideocamOff else Icons.Outlined.Videocam,
-                        contentDescription = if (isVideoBlocked) "Unblock Videos" else "Block Videos",
-                        tint = if (isVideoBlocked) colorScheme.error else colorScheme.onSurfaceVariant,
+                        imageVector = if (isVideoAllowed) Icons.Outlined.Videocam else Icons.Outlined.VideocamOff,
+                        contentDescription = if (isVideoAllowed) "Disallow Videos" else "Allow Videos",
+                        tint = if (isVideoAllowed) colorScheme.primary else colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(22.dp)
                     )
                 }

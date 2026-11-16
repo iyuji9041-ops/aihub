@@ -45,6 +45,7 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.TextIncrease
+import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material.icons.outlined.VideocamOff
 import androidx.compose.material.icons.outlined.VolumeOff
 import androidx.compose.material.icons.outlined.Wifi
@@ -175,7 +176,8 @@ fun SettingsScreen(
     var blockUnnecessaryConnections by remember { mutableStateOf(settings.blockAdsAndTrackers) }
     var saveDataOnMobile by remember { mutableStateOf(settings.saveDataOnMobile) }
     var audioMutedHosts by remember { mutableStateOf(settings.audioMutedHosts) }
-    var videoBlockedHosts by remember { mutableStateOf(settings.videoBlockedHosts) }
+    var videoAllowedHosts by remember { mutableStateOf(settings.videoAllowedHosts) }
+    var videoAllowOnWifi by remember { mutableStateOf(settings.videoAllowOnWifi) }
     var proxyOption by remember { mutableStateOf(if (settings.isProxy) settings.proxyType else "none") }
     var proxyHost by remember { mutableStateOf(settings.proxyHost) }
     var proxyPort by remember { mutableStateOf(settings.proxyPort) }
@@ -236,7 +238,8 @@ fun SettingsScreen(
                         it.serviceOrder = restored.serviceOrder
                         it.favoriteServices = restored.favoriteServices
                         it.audioMutedHosts = restored.audioMutedHosts
-                        it.videoBlockedHosts = restored.videoBlockedHosts
+                        it.videoAllowedHosts = restored.videoAllowedHosts
+                        it.videoAllowOnWifi = restored.videoAllowOnWifi
                     }
 
                     loadLastAi = restored.loadLastOpenedAI
@@ -264,7 +267,8 @@ fun SettingsScreen(
                     blockUnnecessaryConnections = restored.blockAdsAndTrackers
                     saveDataOnMobile = restored.saveDataOnMobile
                     audioMutedHosts = restored.audioMutedHosts
-                    videoBlockedHosts = restored.videoBlockedHosts
+                    videoAllowedHosts = restored.videoAllowedHosts
+                    videoAllowOnWifi = restored.videoAllowOnWifi
                     proxyOption = if (restored.isProxy) restored.proxyType else "none"
                     proxyHost = restored.proxyHost
                     proxyPort = restored.proxyPort
@@ -1051,9 +1055,9 @@ fun SettingsScreen(
                         )
 
                         SettingItem(
-                            title = stringResource(R.string.setting_save_data_mobile),
-                            description = stringResource(R.string.setting_save_data_mobile_description),
-                            icon = Icons.Outlined.Wifi,
+                            title = "Restrict video",
+                            description = "Videos play only on allowed sites",
+                            icon = Icons.Outlined.VideocamOff,
                             iconColor = MaterialTheme.colorScheme.primary
                         ) {
                             Switch(
@@ -1064,6 +1068,71 @@ fun SettingsScreen(
                                     }
                                 }, colors = defaultSwitchTheme
                             )
+                        }
+
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
+                        SettingItem(
+                            title = "Allow video on Wi-Fi",
+                            description = "Play videos when connected to unmetered Wi-Fi",
+                            icon = Icons.Outlined.Wifi,
+                            iconColor = MaterialTheme.colorScheme.primary
+                        ) {
+                            Switch(
+                                checked = videoAllowOnWifi, onCheckedChange = {
+                                    videoAllowOnWifi = it
+                                    settingsManager.updateSettings { settings ->
+                                        settings.videoAllowOnWifi = it
+                                    }
+                                }, colors = defaultSwitchTheme
+                            )
+                        }
+
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
+                        SettingItem(
+                            title = "Allowed Sites (Video)",
+                            description = if (videoAllowedHosts.isEmpty()) "No sites allowed" else "${videoAllowedHosts.size} site(s) allowed",
+                            icon = Icons.Outlined.Videocam,
+                            iconColor = MaterialTheme.colorScheme.primary
+                        )
+
+                        if (videoAllowedHosts.isNotEmpty()) {
+                            @OptIn(ExperimentalLayoutApi::class)
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                            ) {
+                                videoAllowedHosts.forEach { host ->
+                                    InputChip(
+                                        selected = false,
+                                        onClick = {},
+                                        label = { Text(host, style = MaterialTheme.typography.bodySmall) },
+                                        trailingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remove $host",
+                                                modifier = Modifier
+                                                    .size(16.dp)
+                                                    .clickable {
+                                                        val updated = videoAllowedHosts - host
+                                                        videoAllowedHosts = updated
+                                                        settingsManager.updateSettings { it.videoAllowedHosts = updated }
+                                                    }
+                                            )
+                                        }
+                                    )
+                                }
+                            }
                         }
 
                         HorizontalDivider(
@@ -1102,50 +1171,6 @@ fun SettingsScreen(
                                                         val updated = audioMutedHosts - host
                                                         audioMutedHosts = updated
                                                         settingsManager.updateSettings { it.audioMutedHosts = updated }
-                                                    }
-                                            )
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        if (videoBlockedHosts.isNotEmpty()) {
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-
-                            SettingItem(
-                                title = "Blocked Sites (Video)",
-                                description = "${videoBlockedHosts.size} site(s) blocked",
-                                icon = Icons.Outlined.VideocamOff,
-                                iconColor = MaterialTheme.colorScheme.primary
-                            )
-
-                            @OptIn(ExperimentalLayoutApi::class)
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 6.dp)
-                            ) {
-                                videoBlockedHosts.forEach { host ->
-                                    InputChip(
-                                        selected = false,
-                                        onClick = {},
-                                        label = { Text(host, style = MaterialTheme.typography.bodySmall) },
-                                        trailingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Remove $host",
-                                                modifier = Modifier
-                                                    .size(16.dp)
-                                                    .clickable {
-                                                        val updated = videoBlockedHosts - host
-                                                        videoBlockedHosts = updated
-                                                        settingsManager.updateSettings { it.videoBlockedHosts = updated }
                                                     }
                                             )
                                         }

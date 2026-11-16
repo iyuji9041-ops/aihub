@@ -91,7 +91,8 @@ class SettingsManager(context: Context) {
         private const val KEY_SAVED_PROMPTS = "savedPrompts"
 
         private const val KEY_AUDIO_MUTED_HOSTS = "audioMutedHosts"
-        private const val KEY_VIDEO_BLOCKED_HOSTS = "videoBlockedHosts"
+        private const val KEY_VIDEO_ALLOWED_HOSTS = "videoAllowedHosts"
+        private const val KEY_VIDEO_ALLOW_ON_WIFI = "videoAllowOnWifi"
     }
 
     private fun migrateToNewVersion() {
@@ -162,8 +163,9 @@ class SettingsManager(context: Context) {
             ?.toBooleanStrictOrNull(),
         audioMutedHosts = sharedPref.safeGetStringSet(KEY_AUDIO_MUTED_HOSTS, emptySet())
             ?: emptySet(),
-        videoBlockedHosts = sharedPref.safeGetStringSet(KEY_VIDEO_BLOCKED_HOSTS, emptySet())
-            ?: emptySet()
+        videoAllowedHosts = sharedPref.safeGetStringSet(KEY_VIDEO_ALLOWED_HOSTS, setOf("instagram.com"))
+            ?: setOf("instagram.com"),
+        videoAllowOnWifi = sharedPref.getBoolean(KEY_VIDEO_ALLOW_ON_WIFI, false)
     )
 
     private fun saveSettings(settings: AppSettings) {
@@ -201,7 +203,8 @@ class SettingsManager(context: Context) {
             putStringSet(KEY_PREFERRED_PRIVACY, settings.preferredPrivacy)
             putString(KEY_PREFERRED_LOGIN_REQUIRED, settings.preferredLoginRequired?.toString())
             putStringSet(KEY_AUDIO_MUTED_HOSTS, settings.audioMutedHosts)
-            putStringSet(KEY_VIDEO_BLOCKED_HOSTS, settings.videoBlockedHosts)
+            putStringSet(KEY_VIDEO_ALLOWED_HOSTS, settings.videoAllowedHosts)
+            putBoolean(KEY_VIDEO_ALLOW_ON_WIFI, settings.videoAllowOnWifi)
         }
     }
 

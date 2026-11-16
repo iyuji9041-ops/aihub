@@ -803,8 +803,8 @@ fun AiHubApp(
                         currentHost == hl || currentHost.endsWith(".$hl")
                     }
                 }
-                val isCurrentVideoBlocked = remember(currentHost, settings.videoBlockedHosts) {
-                    currentHost.isNotBlank() && settings.videoBlockedHosts.any { h ->
+                val isCurrentVideoAllowed = remember(currentHost, settings.videoAllowedHosts) {
+                    currentHost.isNotBlank() && settings.videoAllowedHosts.any { h ->
                         val hl = h.trim().lowercase()
                         currentHost == hl || currentHost.endsWith(".$hl")
                     }
@@ -898,50 +898,41 @@ fun AiHubApp(
                             }
                         }
                     },
-                    isVideoBlocked = isCurrentVideoBlocked,
-                    onToggleVideoBlock = {
+                    isVideoAllowed = isCurrentVideoAllowed,
+                    onToggleVideo = {
                         if (currentHost.isNotBlank()) {
-                            val currentlyBlocked = isCurrentVideoBlocked
-                            val newSet = if (currentlyBlocked) {
-                                settings.videoBlockedHosts.filterNot { h ->
+                            val currentlyAllowed = isCurrentVideoAllowed
+                            val newAllowed = !currentlyAllowed
+                            val newSet = if (currentlyAllowed) {
+                                settings.videoAllowedHosts.filterNot { h ->
                                     val hl = h.trim().lowercase()
                                     currentHost == hl || currentHost.endsWith(".$hl") || hl.endsWith(".$currentHost")
                                 }.toSet()
                             } else {
-                                settings.videoBlockedHosts + currentHost
+                                settings.videoAllowedHosts + currentHost
                             }
-                            settingsManager.updateSettings { it.videoBlockedHosts = newSet }
+                            settingsManager.updateSettings { it.videoAllowedHosts = newSet }
 
                             val currentWebView = webViews[selectedService.name]
-                            if (!currentlyBlocked) {
-                                val blockJs = "window.__aihubBlockVideo = true; document.querySelectorAll('video').forEach(m=>{m.pause();});"
-                                currentWebView?.evaluateJavascript(blockJs, null)
-                                scope.launch {
-                                    snackbarHostState.currentSnackbarData?.dismiss()
-                                    snackbarHostState.showSnackbar(
-                                        message = "Videos blocked for $currentHost",
-                                        duration = SnackbarDuration.Short
-                                    )
-                                }
-                            } else {
-                                currentWebView?.evaluateJavascript("window.__aihubBlockVideo = false;", null)
-                                scope.launch {
-                                    snackbarHostState.currentSnackbarData?.dismiss()
-                                    val result = snackbarHostState.showSnackbar(
-                                        message = "Reload to apply",
-                                        actionLabel = "Reload",
-                                        duration = SnackbarDuration.Long
-                                    )
-                                    if (result == SnackbarResult.ActionPerformed) {
-                                        currentWebView?.reload()
-                                        updateServiceState(selectedService.name) { state ->
-                                            state.copy(
-                                                webViewState = WebViewState.LOADING,
-                                                isLoading = true,
-                                                error = null,
-                                                progress = 0
-                                            )
-                                        }
+                            val blockVideo = !newAllowed
+                            currentWebView?.evaluateJavascript("window.__aihubBlockVideo = $blockVideo;", null)
+                            currentWebView?.settings?.mediaPlaybackRequiresUserGesture = !newAllowed
+                            scope.launch {
+                                snackbarHostState.currentSnackbarData?.dismiss()
+                                val result = snackbarHostState.showSnackbar(
+                                    message = "Reload to apply",
+                                    actionLabel = "Reload",
+                                    duration = SnackbarDuration.Long
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    currentWebView?.reload()
+                                    updateServiceState(selectedService.name) { state ->
+                                        state.copy(
+                                            webViewState = WebViewState.LOADING,
+                                            isLoading = true,
+                                            error = null,
+                                            progress = 0
+                                        )
                                     }
                                 }
                             }

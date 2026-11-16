@@ -203,7 +203,7 @@ fun createWebViewForService(
         isFocusableInTouchMode = true
         post { requestFocus(View.FOCUS_DOWN) }
 
-        updateWebViewSettings(this, settings, reload = false)
+        updateWebViewSettings(this, settings, reload = false, serviceUrl = service.url)
         Log.d("AI_HUB", "Loading URL for ${service.name}: ${service.url}")
 
         if (settings.isProxy && settings.proxyHost.isNotBlank() && settings.proxyPort.isNotBlank()) {
@@ -240,7 +240,7 @@ fun createWebViewForService(
 
 @SuppressLint("SetJavaScriptEnabled")
 fun updateWebViewSettings(
-    webView: WebView, settings: AppSettings, reload: Boolean
+    webView: WebView, settings: AppSettings, reload: Boolean, serviceUrl: String? = null
 ) {
     webView.settings.apply {
         val percent = settings.fontSizePercentage
@@ -261,7 +261,16 @@ fun updateWebViewSettings(
         javaScriptEnabled = true
         domStorageEnabled = true
         databaseEnabled = true
-        mediaPlaybackRequiresUserGesture = true
+
+        val currentHost = try {
+            (webView.url ?: serviceUrl)?.let { Uri.parse(it).host?.lowercase() }
+        } catch (_: Exception) { null }
+        val isAllowedHost = currentHost != null && settings.videoAllowedHosts.any { h ->
+            val hl = h.trim().lowercase()
+            currentHost == hl || currentHost.endsWith(".$hl")
+        }
+        mediaPlaybackRequiresUserGesture = !isAllowedHost
+
         javaScriptCanOpenWindowsAutomatically = true
         setSupportMultipleWindows(true)
         loadWithOverviewMode = true

@@ -159,6 +159,7 @@ class CustomWebViewClient(
             if (request.isForMainFrame == false) {
                 val settings = context.settingsManager.settingsFlow.value
                 val serviceHost = try { Uri.parse(service.url).host?.lowercase() } catch (_: Exception) { null }
+                val path = request.url?.path?.lowercase() ?: ""
 
                 if (serviceHost != null) {
                     val isAudioMuted = settings.audioMutedHosts.any { h ->
@@ -166,7 +167,6 @@ class CustomWebViewClient(
                         serviceHost == hl || serviceHost.endsWith(".$hl")
                     }
                     if (isAudioMuted) {
-                        val path = request.url?.path?.lowercase() ?: ""
                         val audioExtensions = listOf(".mp3", ".aac", ".ogg", ".oga", ".wav", ".m4a", ".opus", ".flac")
                         if (audioExtensions.any { path.endsWith(it) }) {
                             return WebResourceResponse(
@@ -179,43 +179,30 @@ class CustomWebViewClient(
                             )
                         }
                     }
-
-                    val isVideoBlocked = settings.videoBlockedHosts.any { h ->
-                        val hl = h.trim().lowercase()
-                        serviceHost == hl || serviceHost.endsWith(".$hl")
-                    }
-                    if (isVideoBlocked) {
-                        val path = request.url?.path?.lowercase() ?: ""
-                        val videoExtensions = listOf(".mp4", ".webm", ".mov", ".m3u8", ".mpd", ".m4s")
-                        if (videoExtensions.any { path.endsWith(it) }) {
-                            return WebResourceResponse(
-                                "video/mp4",
-                                "UTF-8",
-                                204,
-                                "No Content",
-                                emptyMap(),
-                                ByteArrayInputStream(ByteArray(0))
-                            )
-                        }
-                    }
                 }
 
-                if (settings.saveDataOnMobile) {
-                    val connectivityManager =
-                        context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-                    if (connectivityManager?.isActiveNetworkMetered == true) {
-                        val path = request.url?.path?.lowercase() ?: ""
-                        val blockedExtensions = listOf(".mp4", ".webm", ".mov", ".m3u8", ".mpd", ".m4s")
-                        if (blockedExtensions.any { path.endsWith(it) }) {
-                            return WebResourceResponse(
-                                "video/mp4",
-                                "UTF-8",
-                                204,
-                                "No Content",
-                                emptyMap(),
-                                ByteArrayInputStream(ByteArray(0))
-                            )
-                        }
+                val connectivityManager =
+                    context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                val isNetworkUnmetered = connectivityManager?.isActiveNetworkMetered == false
+
+                val isTabHostAllowed = serviceHost != null && settings.videoAllowedHosts.any { h ->
+                    val hl = h.trim().lowercase()
+                    serviceHost == hl || serviceHost.endsWith(".$hl")
+                }
+                val isWifiAllowed = settings.videoAllowOnWifi && isNetworkUnmetered
+                val shouldAllowVideo = !settings.saveDataOnMobile || isTabHostAllowed || isWifiAllowed
+
+                if (!shouldAllowVideo) {
+                    val videoExtensions = listOf(".mp4", ".webm", ".mov", ".m3u8", ".mpd", ".m4s")
+                    if (videoExtensions.any { path.endsWith(it) }) {
+                        return WebResourceResponse(
+                            "video/mp4",
+                            "UTF-8",
+                            204,
+                            "No Content",
+                            emptyMap(),
+                            ByteArrayInputStream(ByteArray(0))
+                        )
                     }
                 }
             }
@@ -279,29 +266,71 @@ class CustomWebViewClient(
                 val hl = h.trim().lowercase()
                 serviceHost == hl || serviceHost.endsWith(".$hl")
             }
-            val isVideoBlocked = serviceHost != null && settings.videoBlockedHosts.any { h ->
+            val connectivityManager =
+                context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            val isNetworkUnmetered = connectivityManager?.isActiveNetworkMetered == false
+            val isTabHostAllowed = serviceHost != null && settings.videoAllowedHosts.any { h ->
                 val hl = h.trim().lowercase()
                 serviceHost == hl || serviceHost.endsWith(".$hl")
             }
+            val isWifiAllowed = settings.videoAllowOnWifi && isNetworkUnmetered
+            val isVideoBlocked = settings.saveDataOnMobile && !isTabHostAllowed && !isWifiAllowed
+
             val js = """
                 (function(){
                     window.__aihubBlockVideo = $isVideoBlocked;
                     window.__aihubMuteAudio = $isAudioMuted;
                     if(window.__aihubMediaGuard) return;
-                    window.__aihubMediaGuard=true;
-                    function muteOn(){return window.__aihubMuteAudio===true;}
-                    function vidOff(){return window.__aihubBlockVideo===true;}
-                    function apply(m){ try{ if(muteOn()){ m.muted=true; m.volume=0; } }catch(e){} }
-                    document.addEventListener('play',function(e){ var t=e.target; if(!t||!t.tagName) return;
-                      if(t.tagName==='VIDEO' && vidOff()){ t.pause(); return; }
-                      apply(t); },true);
-                    document.addEventListener('volumechange',function(e){ apply(e.target); },true);
-                    var op=HTMLMediaElement.prototype.play;
-                    HTMLMediaElement.prototype.play=function(){
-                      if(vidOff() && this instanceof HTMLVideoElement) return Promise.reject(new DOMException('Blocked','NotAllowedError'));
-                      apply(this); return op.apply(this,arguments); };
-                    try{ var AC=window.AudioContext||window.webkitAudioContext; if(AC){ var orr=AC.prototype.resume; AC.prototype.resume=function(){ if(muteOn()) return Promise.resolve(); return orr.apply(this,arguments); }; } }catch(e){}
-                    try{ var sp=window.speechSynthesis&&window.speechSynthesis.speak; if(sp){ window.speechSynthesis.speak=function(u){ if(muteOn()) return; return sp.call(window.speechSynthesis,u); }; } }catch(e){}
+                    window.__aihubMediaGuard = true;
+                    var inVolChange = false;
+                    function muteOn(){ return window.__aihubMuteAudio === true; }
+                    function vidOff(){ return window.__aihubBlockVideo === true; }
+                    function apply(m){
+                        try {
+                            if(!m) return;
+                            if(muteOn()){
+                                if(m.muted === true && m.volume === 0) return;
+                                m.muted = true;
+                                m.volume = 0;
+                            }
+                        } catch(e){}
+                    }
+                    document.addEventListener('play', function(e){
+                        var t = e.target;
+                        if(!t || !t.tagName) return;
+                        if(t.tagName === 'VIDEO' && vidOff()){ t.pause(); return; }
+                        apply(t);
+                    }, true);
+                    document.addEventListener('volumechange', function(e){
+                        if(inVolChange) return;
+                        inVolChange = true;
+                        try { apply(e.target); } finally { inVolChange = false; }
+                    }, true);
+                    var op = HTMLMediaElement.prototype.play;
+                    HTMLMediaElement.prototype.play = function(){
+                        if(vidOff() && this instanceof HTMLVideoElement) return Promise.reject(new DOMException('Blocked','NotAllowedError'));
+                        apply(this);
+                        return op.apply(this, arguments);
+                    };
+                    try {
+                        var AC = window.AudioContext || window.webkitAudioContext;
+                        if(AC){
+                            var orr = AC.prototype.resume;
+                            AC.prototype.resume = function(){
+                                if(muteOn()) return Promise.resolve();
+                                return orr.apply(this, arguments);
+                            };
+                        }
+                    } catch(e){}
+                    try {
+                        var sp = window.speechSynthesis && window.speechSynthesis.speak;
+                        if(sp){
+                            window.speechSynthesis.speak = function(u){
+                                if(muteOn()) return;
+                                return sp.call(window.speechSynthesis, u);
+                            };
+                        }
+                    } catch(e){}
                 })();
             """.trimIndent()
             view.evaluateJavascript(js, null)
