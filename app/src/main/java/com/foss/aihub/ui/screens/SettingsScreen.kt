@@ -48,6 +48,7 @@ import androidx.compose.material.icons.outlined.TextIncrease
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material.icons.outlined.VideocamOff
 import androidx.compose.material.icons.outlined.VolumeOff
+import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material.icons.outlined.ZoomIn
 import androidx.compose.material.icons.rounded.AcUnit
