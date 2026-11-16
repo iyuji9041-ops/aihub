@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- App Info -->
-    <string name="app_name" translatable="false">Zaswix Hub</string>
+    <string name="app_name" translatable="false"><APP_NAME></string>
     <string name="app_author" translatable="false">Silent Coder</string>
     <string name="matrix" translatable="false">Matrix</string>
     <string name="app_logo_description">Logo do AI Hub</string>

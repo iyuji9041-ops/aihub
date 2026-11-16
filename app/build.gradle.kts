@@ -17,8 +17,8 @@ android {
         minSdk = 26
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 16
-        versionName = "3.1.0"
+        versionCode = 17
+        versionName = "<VERSION>"
     }
 
     compileOptions {

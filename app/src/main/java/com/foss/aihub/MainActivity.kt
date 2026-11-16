@@ -273,11 +273,6 @@ class MainActivity : ComponentActivity() {
 
     fun launchFileChooser(filePathCallback: ValueCallback<Array<Uri>>) {
         this.filePathCallback = filePathCallback
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 100)
-            }
-        }
         val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "*/*"

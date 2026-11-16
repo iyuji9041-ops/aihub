@@ -1,9 +1,14 @@
 <div align="center">
   <img src="fastlane/metadata/android/en-US/images/icon.png" width="128" style="border-radius: 20%;" alt="App Icon">
-  <h1>Zaswix Hub</h1>
+  <h1><APP_NAME></h1>
   <p>
     <strong>All your AI assistants, beautifully together.</strong><br>
     Privacy-first, open-source, and completely customizable.
+  </p>
+
+  <p>
+    <em>Based on <a href="https://github.com/silentcoderhere/aihub">AI Hub by silentcoderhere</a> (GPLv3).</em><br>
+    Source: <a href="https://github.com/<GITHUB_USER>/<REPO>">https://github.com/<GITHUB_USER>/<REPO></a>
   </p>
 
   <img src="https://img.shields.io/badge/Platform-Android-brightgreen?style=for-the-badge&logo=android&logoColor=white" alt="Platform: Android">
@@ -96,7 +101,7 @@ clever-ramanujan/
 │       │   ├── MainActivity.kt               # Entry point; sets up Compose, system bars, deep links
 │       │   ├── models/                       # Data models & schemas
 │       │   │   ├── AiService.kt              # AI service model (name, URL, icon, tags)
-│       │   │   ├── AppSettings.kt            # App settings (theme, audioMutedHosts, videoBlockedHosts, etc.)
+│       │   │   ├── AppSettings.kt            # App settings (theme, audioMutedHosts, videoAllowedHosts, freezeMode, etc.)
 │       │   │   ├── WebViewState.kt           # Enum for WebStates (LOADING, SUCCESS, ERROR)
 │       │   │   └── SettingsBackup.kt         # Backup/restore JSON schema
 │       │   ├── ui/
@@ -146,8 +151,26 @@ Help translate AI Hub into your language! We use [Weblate](https://hosted.weblat
 
 ---
 
-## 🙏 Special Thanks
+## 🔑 Verifying APK Signing Key Fingerprint
 
+To verify the authenticity of the release APK, you can check its signing certificate fingerprint using `apksigner`:
+
+```bash
+apksigner verify --print-certs <APP_NAME>-debug.apk
+```
+
+Or using `keytool`:
+
+```bash
+keytool -printcert -jarfile <APP_NAME>-debug.apk
+```
+
+Compare the SHA-256 fingerprint against the trusted fingerprint to ensure the build has not been tampered with.
+
+## 🙏 Special Thanks & Credits
+
+- **Based on AI Hub by silentcoderhere, GPLv3**: [Upstream Repository](https://github.com/silentcoderhere/aihub)
+- **Fork / Modified by**: [<GITHUB_USER>](https://github.com/<GITHUB_USER>/<REPO>)
 - **[Nora](https://github.com/nonbili/Nora)** – original idea for this app
 - **[StevenBlack](https://github.com/StevenBlack/hosts)** – for the comprehensive hosts list used for ad and tracker blocking
 - **[uxwing](https://uxwing.com/)** – beautiful app icon

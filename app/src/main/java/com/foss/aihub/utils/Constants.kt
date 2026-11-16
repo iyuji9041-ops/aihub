@@ -7,12 +7,13 @@ const val USER_AGENT_DESKTOP =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
 const val USER_AGENT_MOBILE =
     "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.7632.121 Mobile Safari/537.36"
-const val GITHUB_USER_NAME = "iyuji9041-ops"
-const val GITHUB_REPO_NAME = "aihub"
-const val SUPPORT_EMAIL = "silentcoder@tutamail.com"
-const val CLOUD_BASE_URL = "https://raw.githubusercontent.com/iyuji9041-ops/aihub-config-data/main/"
+const val GITHUB_USER_NAME = "<GITHUB_USER>"
+const val GITHUB_REPO_NAME = "<REPO>"
+const val SUPPORT_EMAIL = "<SUPPORT_EMAIL>"
+const val CLOUD_BASE_URL = "<CONFIG_BASE_URL>"
 const val CONFIG_PUBLIC_KEY_BASE64 = "<PUBLIC_KEY_BASE64>"
-const val UPSTREAM_MIRROR_BASE_URL = "https://silentcoderhere.github.io/aihub-config-data/"
+const val APP_NAME = "<APP_NAME>"
+const val VERSION = "<VERSION>"
 const val AI_SERVICES_FILE = "ais.json"
 const val DOMAINS_FILE = "domains.txt"
 

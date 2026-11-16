@@ -253,6 +253,15 @@ fun AboutScreen(context: Context, onBack: () -> Unit) {
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                         )
                         ListItemWithIcon(
+                            icon = Icons.Outlined.Code,
+                            title = "Upstream Project",
+                            description = "Based on AI Hub by silentcoderhere, GPLv3",
+                            onClick = { uriHandler.openUri("https://github.com/silentcoderhere/aihub") })
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                        )
+                        ListItemWithIcon(
                             icon = Icons.Outlined.PrivacyTip,
                             title = stringResource(R.string.action_privacy_policy),
                             description = stringResource(R.string.label_privacy_policy_summary),
@@ -321,6 +330,15 @@ fun AboutScreen(context: Context, onBack: () -> Unit) {
                         modifier = Modifier.clickable {
                             uriHandler.openUri("https://github.com/$GITHUB_USER_NAME")
                         })
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Based on AI Hub by silentcoderhere, GPLv3",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable {
+                            uriHandler.openUri("https://github.com/silentcoderhere/aihub")
+                        }
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "© ${Year.now().value} $author",

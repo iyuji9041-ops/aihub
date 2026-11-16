@@ -1,1 +1,1 @@
-AI Hub
+<APP_NAME>

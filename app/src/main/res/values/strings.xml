@@ -50,7 +50,7 @@
     <string name="action_view_details">Details</string>
     <string name="app_author" translatable="false">Silent Coder</string>
     <string name="app_logo_description">AI Hub Logo</string>
-    <string name="app_name" translatable="false">Zaswix Hub</string>
+    <string name="app_name" translatable="false"><APP_NAME></string>
     <string name="copy_link_description">Copy link to clipboard</string>
     <string name="desc_email_method">We\'ll send you a direct link to submit via email</string>
     <string name="desc_github_issue">Open an issue on our repository (requires GitHub account)</string>

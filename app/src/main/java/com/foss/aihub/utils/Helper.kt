@@ -176,13 +176,13 @@ fun getUpdateErrorMessage(context: Context, error: Exception): String {
 }
 
 suspend fun checkForUpdate(context: Context): AppUpdateInfo? {
-    val url = "https://api.github.com/repos/$GITHUB_USER_NAME/$GITHUB_REPO_NAME/releases/latest"
+    val urlString = "https://api.github.com/repos/$GITHUB_USER_NAME/$GITHUB_REPO_NAME/releases/latest"
 
     return try {
         val currentVersion =
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: return null
 
-        val url = URL(url)
+        val url = URL(urlString)
         val connection = withContext(Dispatchers.IO) {
             url.openConnection()
         } as HttpURLConnection
@@ -190,16 +190,23 @@ suspend fun checkForUpdate(context: Context): AppUpdateInfo? {
         connection.connectTimeout = 5000
         connection.readTimeout = 5000
 
+        if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+            return null
+        }
+
         val response = connection.inputStream.bufferedReader().readText()
         val json = JSONObject(response)
 
-        val latestVersion = json.getString("tag_name")
+        val latestVersion = json.optString("tag_name", "")
+        if (latestVersion.isBlank()) return null
         val cleanedLatest = latestVersion.removePrefix("v")
-        val body = json.getString("body")
-        val downloadUrl =
-            json.getJSONArray("assets").getJSONObject(0).getString("browser_download_url")
+        val body = json.optString("body", "")
+        val assets = json.optJSONArray("assets") ?: return null
+        if (assets.length() == 0) return null
+        val downloadUrl = assets.optJSONObject(0)?.optString("browser_download_url")
+        if (downloadUrl.isNullOrBlank()) return null
 
-        if (isNewerVersion(cleanedLatest, currentVersion!!)) {
+        if (isNewerVersion(cleanedLatest, currentVersion)) {
             AppUpdateInfo(cleanedLatest, body, downloadUrl)
         } else null
     } catch (_: Exception) {
